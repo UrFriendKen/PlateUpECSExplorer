@@ -36,6 +36,8 @@ namespace KitchenECSExplorer
         protected override void OnInitialise() 
         {
             LogWarning($"{MOD_GUID} v{MOD_VERSION} in use!");
+            RegisterMenu<EntityQueryMenu>();
+            RegisterMenu<GDOMenu>();
         }
 
         protected override void OnUpdate()
@@ -44,7 +46,6 @@ namespace KitchenECSExplorer
 
         protected override void OnPostActivate(KitchenMods.Mod mod)
         {
-            RegisterMenu<EntityQueryMenu>();
         }
         #region Logging
         public static void LogInfo(string _log) { Debug.Log($"[{MOD_NAME}] " + _log); }

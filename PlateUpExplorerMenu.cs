@@ -9,6 +9,8 @@ namespace KitchenECSExplorer
         protected GUIStyle LabelCentreStyle;
         protected GUIStyle LabelMiddleCentreStyle;
 
+        protected GUIStyle ButtonLeftStyle;
+
         protected Texture2D Background;
         public sealed override void OnInit()
         {
@@ -49,6 +51,14 @@ namespace KitchenECSExplorer
                 LabelMiddleCentreStyle.alignment = TextAnchor.MiddleCenter;
                 LabelMiddleCentreStyle.stretchWidth = true;
                 LabelMiddleCentreStyle.stretchHeight = true;
+            }
+
+            if (ButtonLeftStyle == null)
+            {
+                ButtonLeftStyle = new GUIStyle(GUI.skin.button);
+                ButtonLeftStyle.alignment = TextAnchor.MiddleLeft;
+                ButtonLeftStyle.padding.left = 10;
+                ButtonLeftStyle.stretchWidth = true;
             }
             OnSetup();
         }
