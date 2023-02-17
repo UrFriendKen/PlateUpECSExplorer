@@ -1,9 +1,6 @@
 ﻿using Kitchen;
-using KitchenDrinksMod.Milkshake;
 using System;
-using System.CodeDom;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 using Unity.Collections;
@@ -11,6 +8,13 @@ using Unity.Entities;
 
 namespace KitchenECSExplorer
 {
+    internal enum ActionState
+    {
+        Success,
+        Error
+    }
+
+
     internal struct EntityData
     {
         public Entity Entity;
@@ -20,6 +24,7 @@ namespace KitchenECSExplorer
     internal struct ComponentData
     {
         public ComponentType Type;
+        public ActionState State;
         public int FieldCount;
         public List<string> FieldNames;
         public List<Type> FieldTypes;
@@ -28,7 +33,6 @@ namespace KitchenECSExplorer
 
     internal class ECSExplorerController : GameSystemBase
     {
-
         private static EntityQuery Query = default;
 
         private static List<EntityData> entityData = new List<EntityData>();
@@ -36,6 +40,8 @@ namespace KitchenECSExplorer
         internal static ECSExplorerController instance;
 
         private MethodInfo mGetComponentData = typeof(EntityManager).GetMethod("GetComponentData");
+        //private MethodInfo mGetComponentObject = typeof(EntityManager).GetMethod("GetComponentObject", new Type[] { typeof(ComponentType), typeof(Entity) });
+        private MethodInfo mGetComponentObject = typeof(EntityManager).GetMethod("GetComponentObject", new Type[] { typeof(Entity) });
 
         protected override void OnUpdate()
         {
@@ -112,13 +118,14 @@ namespace KitchenECSExplorer
         {
             ComponentData data = new ComponentData();
             data.Type = componentType;
-            data.FieldCount = 0;
+            Type type = componentType.GetManagedType();
+            FieldInfo[] fields = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            data.FieldCount = fields.Count();
+            int fieldDataObtainedCount = 0;
             if (EntityManager.HasComponent(entity, componentType))
             {
-                Type type = componentType.GetManagedType();
                 MethodInfo genericMethod = mGetComponentData.MakeGenericMethod(type);
                 var componentInstance = genericMethod.Invoke(EntityManager, new object[] { entity });
-                FieldInfo[] fields = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 data.FieldNames = new List<string>();
                 data.FieldTypes = new List<Type>();
                 data.FieldValues = new List<object>();
@@ -127,9 +134,11 @@ namespace KitchenECSExplorer
                     data.FieldNames.Add(field.Name);
                     data.FieldTypes.Add(field.FieldType);
                     data.FieldValues.Add(field.GetValue(componentInstance));
-                    data.FieldCount++;
+                    fieldDataObtainedCount++;
                 }
             }
+
+            data.State = data.FieldCount == fieldDataObtainedCount ? ActionState.Success : ActionState.Error;
             return data;
         }
     }
