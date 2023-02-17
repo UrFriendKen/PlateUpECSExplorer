@@ -1,22 +1,12 @@
-﻿using KitchenECSExplorer;
-using KitchenLib.DevUI;
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Unity.Entities;
 using UnityEngine;
 
 namespace KitchenECSExplorer
 {
-    public class EntityQueryMenu : BaseUI
+    public class EntityQueryMenu : PlateUpExplorerMenu
     {
-
-        GUIStyle textLeftStyle;
-        GUIStyle textCentreStyle;
-        GUIStyle textMiddleCentreStyle;
-
         private string componentFilterText = "";
         private static Vector2 filterScrollPosition = new Vector2(0, 0);
 
@@ -38,14 +28,12 @@ namespace KitchenECSExplorer
         private static List<Vector2> watchingEntitiesComponentsScrollPosition = new List<Vector2>();
         private static List<Vector2> watchingEntitiesComponentInfoScrollPosition = new List<Vector2>();
 
-        Texture2D background;
-
         public EntityQueryMenu()
         {
             ButtonName = "Entity Query";
         }
 
-        public override void OnInit()
+        public override void OnInitialise()
         {
             int i = 0;
             foreach (var typeInfo in TypeManager.AllTypes.Where(componentType => componentType.Category == TypeManager.TypeCategory.ComponentData))
@@ -58,51 +46,17 @@ namespace KitchenECSExplorer
                 }
             }
             Main.LogInfo($"Number of components = {i}");
-
-            background = new Texture2D(64, 64);
-            Color grayWithAlpha = new Color(0.2f, 0.2f, 0.2f, 0.6f);
-            for (int x = 0; x < 64; x++)
-            {
-                for (int y = 0; y < 64; y++)
-                {
-                    background.SetPixel(x, y, grayWithAlpha);
-                }
-            }
-            background.Apply();
         }
 
-        public override void Setup() // This is called evey frame the menu is open, This is also where you draw your UnityGUI
+        public override void OnSetup() // This is called evey frame the menu is open, This is also where you draw your UnityGUI
         {
             float windowWidth = 775f;
             float componentListWidth = windowWidth - 40f;
             float queryListWidth = windowWidth / 3f - 15f;
 
-            if (textLeftStyle == null)
-            {
-                textLeftStyle = new GUIStyle(GUI.skin.label);
-                textLeftStyle.alignment = TextAnchor.MiddleLeft;
-                textLeftStyle.padding.left = 10;
-                textLeftStyle.stretchWidth = true;
-            }
-
-            if (textCentreStyle == null)
-            {
-                textCentreStyle = new GUIStyle(GUI.skin.label);
-                textCentreStyle.alignment = TextAnchor.MiddleCenter;
-                textCentreStyle.stretchWidth = true;
-            }
-
-            if (textMiddleCentreStyle == null)
-            {
-                textMiddleCentreStyle = new GUIStyle(GUI.skin.label);
-                textMiddleCentreStyle.alignment = TextAnchor.MiddleCenter;
-                textMiddleCentreStyle.stretchWidth = true;
-                textMiddleCentreStyle.stretchHeight = true;
-            }
-
             #region All Components List
             GUILayout.BeginArea(new Rect(10f, 0f, windowWidth, 250f));
-            GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 250f), background, ScaleMode.StretchToFill);
+            GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 250f), Background, ScaleMode.StretchToFill);
 
             GUILayout.Label("Filter");
 
@@ -137,12 +91,12 @@ namespace KitchenECSExplorer
 
             #region Selected Components
             GUILayout.BeginArea(new Rect(10f, 260f, windowWidth, 100f));
-            GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 100f), background, ScaleMode.StretchToFill);
+            GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 100f), Background, ScaleMode.StretchToFill);
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label($"All ({QueryAll.Count})", textCentreStyle, GUILayout.Width(windowWidth / 3f));
-            GUILayout.Label($"Any ({QueryAny.Count})", textCentreStyle, GUILayout.Width(windowWidth / 3f));
-            GUILayout.Label($"None ({QueryNone.Count})", textCentreStyle, GUILayout.Width(windowWidth / 3f));
+            GUILayout.Label($"All ({QueryAll.Count})", LabelCentreStyle, GUILayout.Width(windowWidth / 3f));
+            GUILayout.Label($"Any ({QueryAny.Count})", LabelCentreStyle, GUILayout.Width(windowWidth / 3f));
+            GUILayout.Label($"None ({QueryNone.Count})", LabelCentreStyle, GUILayout.Width(windowWidth / 3f));
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
@@ -163,20 +117,19 @@ namespace KitchenECSExplorer
 
             GUILayout.EndArea();
             #endregion
-
-
+            
             #region Query Results
             List<EntityData> results = ECSExplorerController.GetQueryResult();
 
             GUILayout.BeginArea(new Rect(10f, 410f, windowWidth, 150f));
-            GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 150f), background, ScaleMode.StretchToFill);
+            GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 150f), Background, ScaleMode.StretchToFill);
             if (results.Count == 0)
             {
-                GUILayout.Label("No entities matching query!", textMiddleCentreStyle);
+                GUILayout.Label("No entities matching query!", LabelMiddleCentreStyle);
             }
             else
             {
-                GUILayout.Label($"Entities ({results.Count})", textCentreStyle);
+                GUILayout.Label($"Entities ({results.Count})", LabelCentreStyle);
                 resultsScrollPosition = GUILayout.BeginScrollView(resultsScrollPosition, false, false, GUIStyle.none, GUI.skin.verticalScrollbar);
 
                 for (int i = 0; i < results.Count; i++)
@@ -197,7 +150,7 @@ namespace KitchenECSExplorer
             if (watchingEntities.Count > 0)
             {
                 GUILayout.BeginArea(new Rect(10f, 570f, windowWidth, 390f));
-                GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 390f), background, ScaleMode.StretchToFill);
+                GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 390f), Background, ScaleMode.StretchToFill);
                 watchingEntitiesScrollPosition = GUILayout.BeginScrollView(watchingEntitiesScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar);
 
 
@@ -291,7 +244,7 @@ namespace KitchenECSExplorer
             Entity entity = entityData.Entity;
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label($"{(entity == default ? "" : $"Entity {entity.Index}")}", textCentreStyle, GUILayout.Width(windowWidth * 0.87f));
+            GUILayout.Label($"{(entity == default ? "" : $"Entity {entity.Index}")}", LabelCentreStyle, GUILayout.Width(windowWidth * 0.87f));
             if (GUILayout.Button("Close", GUILayout.Width(windowWidth * 0.1f)))
             {
                 closeButtonPressed = true;
@@ -301,7 +254,7 @@ namespace KitchenECSExplorer
 
             if (entity == default)
             {
-                GUILayout.Label("Entity Destroyed!", textMiddleCentreStyle, new GUILayoutOption[] { GUILayout.Height(rowHeight) });
+                GUILayout.Label("Entity Destroyed!", LabelMiddleCentreStyle, new GUILayoutOption[] { GUILayout.Height(rowHeight) });
             }
             else
             {
@@ -321,19 +274,19 @@ namespace KitchenECSExplorer
                     }
                     else
                     {
-                        GUILayout.Label(componentName, textCentreStyle);
+                        GUILayout.Label(componentName, LabelCentreStyle);
                     }
                 }
                 GUILayout.EndScrollView();
 
                 if (componentType == null)
                 {
-                    GUILayout.Label("Select a component", textMiddleCentreStyle);
+                    GUILayout.Label("Select a component", LabelMiddleCentreStyle);
                     componentsInfoScrollPosition = new Vector2(0, 0);
                 }
                 else if (!components.Contains(componentType))
                 {
-                    GUILayout.Label("Component is removed!", textMiddleCentreStyle);
+                    GUILayout.Label("Component is removed!", LabelMiddleCentreStyle);
                     componentsInfoScrollPosition = new Vector2(0, 0);
                 }
                 else
@@ -342,12 +295,12 @@ namespace KitchenECSExplorer
                     ComponentData data = ECSExplorerController.instance.GetComponentData(entity, componentType);
 
                     GUILayout.BeginVertical();
-                    GUILayout.Label(componentType.GetManagedType().ToString(), textCentreStyle);
+                    GUILayout.Label(componentType.GetManagedType().ToString(), LabelCentreStyle);
 
                     GUILayout.BeginHorizontal();
-                    GUILayout.Label("Name", textCentreStyle, GUILayout.Width(componentDataWidth * 0.23f));
-                    GUILayout.Label("Type", textCentreStyle, GUILayout.Width(componentDataWidth * 0.4f));
-                    GUILayout.Label("Value", textCentreStyle, GUILayout.Width(componentDataWidth * 0.3f));
+                    GUILayout.Label("Name", LabelCentreStyle, GUILayout.Width(componentDataWidth * 0.23f));
+                    GUILayout.Label("Type", LabelCentreStyle, GUILayout.Width(componentDataWidth * 0.4f));
+                    GUILayout.Label("Value", LabelCentreStyle, GUILayout.Width(componentDataWidth * 0.3f));
                     GUILayout.EndHorizontal();
 
 
@@ -370,11 +323,11 @@ namespace KitchenECSExplorer
                             Main.LogError($"FieldCount = {data.FieldCount}");
                         }
                         noFieldsString += $"\nIf the error persists, please contact the mod developer ({Main.MOD_AUTHOR}) and provide your Player.log file.";
-                        GUILayout.Label(noFieldsString, textMiddleCentreStyle);
+                        GUILayout.Label(noFieldsString, LabelMiddleCentreStyle);
                     }
                     else if (data.FieldCount == 0)
                     {
-                        GUILayout.Label("No fields", textMiddleCentreStyle);
+                        GUILayout.Label("No fields", LabelMiddleCentreStyle);
                     }
                     else
                     {
@@ -383,9 +336,9 @@ namespace KitchenECSExplorer
                         {
                             GUILayout.BeginHorizontal();
 
-                            GUILayout.Label(data.FieldNames[i], textLeftStyle, GUILayout.Width(componentDataWidth * 0.23f));
-                            GUILayout.Label(data.FieldTypes[i].ToString(), textLeftStyle, GUILayout.Width(componentDataWidth * 0.38f));
-                            GUILayout.Label(data.FieldValues[i].ToString(), textLeftStyle, GUILayout.Width(componentDataWidth * 0.3f));
+                            GUILayout.Label(data.FieldNames[i], LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.23f));
+                            GUILayout.Label(data.FieldTypes[i].ToString(), LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.38f));
+                            GUILayout.Label(data.FieldValues[i].ToString(), LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.3f));
 
                             GUILayout.EndHorizontal();
                         }
