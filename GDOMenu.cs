@@ -1,7 +1,5 @@
-﻿using HarmonyLib;
-using KitchenLib.DevUI;
+﻿using KitchenData;
 using KitchenLib.Utils;
-using MonoMod.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -9,16 +7,13 @@ using System.Linq;
 using System.Reflection;
 using Unity.Entities;
 using UnityEngine;
-using UnityEngine.UIElements;
-using static UnityEngine.Rendering.DebugUI;
 
 namespace KitchenECSExplorer
 {
     internal class GDOMenu : PlateUpExplorerMenu
     {
         private MethodInfo mGetCustomGameDataObject = typeof(GDOUtils).GetMethod("GetCustomGameDataObject", new Type[] { });
-
-
+        private MethodInfo mVanillaGetGDO = typeof(GameData).GetMethod("Get", new Type[] { });
 
         private class GDOData
         {
@@ -237,8 +232,12 @@ namespace KitchenECSExplorer
         private GDOData SelectedGDO = null;
         private Type SelectedGDOType = null;
         private bool IsSelectedVanilla = false;
+        private MethodInfo GenericVanillaGetGDO = null;
 
+        private static Vector2 vanillaGDOInstanceListScrollPosition = new Vector2(0, 0);
         private static Vector2 hierarchyScrollPosition = new Vector2(0, 0);
+
+        private const float windowWidth = 775f;
 
         public GDOMenu()
         {
@@ -268,9 +267,6 @@ namespace KitchenECSExplorer
 
         public override void OnSetup() // This is called evey frame the menu is open, This is also where you draw your UnityGUI
         {
-            float windowWidth = 775f;
-            float componentListWidth = windowWidth - 40f;
-            float queryListWidth = windowWidth / 3f - 15f;
 
             #region All Components List
             GUILayout.BeginArea(new Rect(10f, 0f, windowWidth, 250f));
@@ -292,9 +288,9 @@ namespace KitchenECSExplorer
                 {
                     if (GUILayout.Button(typeString, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.4f - 15f)))
                     {
-                        SelectedGDOType = VanillaGDOs[i];
+                        Clear();
                         IsSelectedVanilla = true;
-                        SelectedGDO = null;
+                        SelectedGDOType = VanillaGDOs[i];
                     }
                 }
             }
@@ -302,7 +298,7 @@ namespace KitchenECSExplorer
             GUILayout.EndVertical();
 
             GUILayout.BeginVertical(GUILayout.Width(windowWidth * 0.6f));
-            GUILayout.Label("Custom GDO Types", LabelCentreStyle);
+            GUILayout.Label("Kitchen Lib Registered CustomGDO Types", LabelCentreStyle);
             customsfilterScrollPosition = GUILayout.BeginScrollView(customsfilterScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar);
 
             for (int i = 0; i < CustomGDOs.Count; i++)
@@ -312,9 +308,9 @@ namespace KitchenECSExplorer
                 {
                     if (GUILayout.Button(typeString, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.6f - 15f)))
                     {
-                        SelectedGDOType = CustomGDOs[i];
+                        Clear();
                         IsSelectedVanilla = false;
-                        SelectedGDO = null;
+                        SelectedGDOType = CustomGDOs[i];
                     }
                 }
             }
@@ -340,10 +336,44 @@ namespace KitchenECSExplorer
                 GUILayout.EndArea();
             }
         }
+        private void Clear()
+        {
+            SelectedGDOType = null;
+            SelectedGDO = null;
+            IsSelectedVanilla = false;
+            vanillaGDOInstanceListScrollPosition = new Vector2(0, 0);
+            hierarchyScrollPosition = new Vector2(0, 0);
+            GenericVanillaGetGDO = null;
+        }
 
         private void DrawVanilla()
         {
-            DrawHierarchy();
+            if (GenericVanillaGetGDO == null)
+            {
+                GenericVanillaGetGDO = mVanillaGetGDO.MakeGenericMethod(SelectedGDOType);
+            }
+
+            GUILayout.BeginHorizontal();
+            GUILayout.BeginVertical();
+            GUILayout.Label($"Derived Types ({SelectedGDOType.Name})", LabelCentreStyle, GUILayout.Width(windowWidth * 0.3f));
+            vanillaGDOInstanceListScrollPosition = GUILayout.BeginScrollView(vanillaGDOInstanceListScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar, GUILayout.Width(windowWidth * 0.3f));
+
+            foreach (var gDO in GenericVanillaGetGDO.Invoke(GameData.Main, null) as IEnumerable<object>)
+            {
+                string typeName = gDO.ToString();
+                if (GUILayout.Button(typeName, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.3f - 15f)))
+                {
+                    SelectedGDO = new GDOData(typeName, gDO);
+                }
+            }
+            GUILayout.EndScrollView();
+            GUILayout.EndVertical();
+
+            if (SelectedGDO != null)
+            {
+                DrawHierarchy(windowWidth * 0.7f);
+            }
+            GUILayout.EndHorizontal();
         }
 
         private void DrawCustom()
@@ -357,11 +387,11 @@ namespace KitchenECSExplorer
             DrawHierarchy();
         }
 
-        private void DrawHierarchy()
+        private void DrawHierarchy(float width = windowWidth)
         {
             if (SelectedGDO != null)
             {
-                hierarchyScrollPosition = GUILayout.BeginScrollView(hierarchyScrollPosition, false, false, GUI.skin.horizontalScrollbar, GUI.skin.verticalScrollbar);
+                hierarchyScrollPosition = GUILayout.BeginScrollView(hierarchyScrollPosition, false, false, GUI.skin.horizontalScrollbar, GUI.skin.verticalScrollbar, GUILayout.Width(width));
 
                 DrawGDOData(SelectedGDO);
 
