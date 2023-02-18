@@ -40,8 +40,6 @@ namespace KitchenECSExplorer
         internal static ECSExplorerController instance;
 
         private MethodInfo mGetComponentData = typeof(EntityManager).GetMethod("GetComponentData");
-        //private MethodInfo mGetComponentObject = typeof(EntityManager).GetMethod("GetComponentObject", new Type[] { typeof(ComponentType), typeof(Entity) });
-        private MethodInfo mGetComponentObject = typeof(EntityManager).GetMethod("GetComponentObject", new Type[] { typeof(Entity) });
 
         protected override void OnUpdate()
         {
