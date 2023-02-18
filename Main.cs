@@ -11,11 +11,11 @@ namespace KitchenECSExplorer
         // GUID must be unique and is recommended to be in reverse domain name notation
         // Mod Name is displayed to the player and listed in the mods menu
         // Mod Version must follow semver notation e.g. "1.2.3"
-        public const string MOD_GUID = "IcedMilo.PlateUp.ECSExplorer";
-        public const string MOD_NAME = "ECS Explorer";
-        public const string MOD_VERSION = "0.2.0";
+        public const string MOD_GUID = "IcedMilo.PlateUp.PlateUpExplorer";
+        public const string MOD_NAME = "PlateUp! Explorer";
+        public const string MOD_VERSION = "1.0.0";
         public const string MOD_AUTHOR = "IcedMilo";
-        public const string MOD_GAMEVERSION = ">=1.1.3";
+        public const string MOD_GAMEVERSION = ">=1.1.4";
         // Game version this mod is designed for in semver
         // e.g. ">=1.1.3" current and all future
         // e.g. ">=1.1.3 <=1.2.3" for all from/until
