@@ -38,7 +38,7 @@ namespace KitchenECSExplorer
             int i = 0;
             foreach (var typeInfo in TypeManager.AllTypes.Where(componentType => 
                 componentType.Category == TypeManager.TypeCategory.ComponentData ||
-                //componentType.Category == TypeManager.TypeCategory.BufferData ||
+                componentType.Category == TypeManager.TypeCategory.BufferData ||
                 componentType.Category == TypeManager.TypeCategory.ISharedComponentData ||
                 componentType.Category == TypeManager.TypeCategory.EntityData
                 ))
@@ -300,7 +300,7 @@ namespace KitchenECSExplorer
                     ComponentData data = ECSExplorerController.instance.GetComponentData(entity, componentType);
 
                     GUILayout.BeginVertical();
-                    GUILayout.Label(componentType.GetManagedType().ToString(), LabelCentreStyle);
+                    GUILayout.Label($"{componentType.GetManagedType()} ({data.Classification})", LabelCentreStyle);
 
                     GUILayout.BeginHorizontal();
                     GUILayout.Label("Name", LabelCentreStyle, GUILayout.Width(componentDataWidth * 0.23f));
@@ -312,7 +312,7 @@ namespace KitchenECSExplorer
                     if (data.State == ActionState.Error)
                     {
                         string noFieldsString;
-                        if (CompatibilityReporter.NO_FIELDS.TryGetValue(data.Type, out string compatibilityErrorString))
+                        if (CompatibilityReporter.NO_FIELDS.TryGetValue(data.Type, out string compatibilityErrorString) || data.Classification == ComponentTypeClassification.None)
                         {
                             noFieldsString = $"Unable to obtain field information!\n{compatibilityErrorString}";
                             Main.LogError("--- EntityQueryFieldsNotFound ---");
@@ -336,18 +336,25 @@ namespace KitchenECSExplorer
                     }
                     else
                     {
-                        componentsInfoScrollPosition = GUILayout.BeginScrollView(componentsInfoScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar, GUILayout.Width(componentDataWidth));
-                        for (int i = 0; i < data.FieldCount; i++)
+                        if (data.Classification == ComponentTypeClassification.Buffer)
                         {
-                            GUILayout.BeginHorizontal();
-
-                            GUILayout.Label(data.FieldNames[i], LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.23f));
-                            GUILayout.Label(data.FieldTypes[i].ToString(), LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.38f));
-                            GUILayout.Label(data.FieldValues[i].ToString(), LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.3f));
-
-                            GUILayout.EndHorizontal();
+                            GUILayout.Label("Buffer Component inspection is unsupported", LabelMiddleCentreStyle);
                         }
-                        GUILayout.EndScrollView();
+                        else
+                        {
+                            componentsInfoScrollPosition = GUILayout.BeginScrollView(componentsInfoScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar, GUILayout.Width(componentDataWidth));
+                            for (int i = 0; i < data.FieldCount; i++)
+                            {
+                                GUILayout.BeginHorizontal();
+
+                                GUILayout.Label(data.FieldNames[i], LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.23f));
+                                GUILayout.Label(data.FieldTypes[i].ToString(), LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.38f));
+                                GUILayout.Label(data.FieldValues[i].ToString(), LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.3f));
+
+                                GUILayout.EndHorizontal();
+                            }
+                            GUILayout.EndScrollView();
+                        }
                     }
 
                     GUILayout.EndVertical();

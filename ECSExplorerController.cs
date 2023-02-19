@@ -15,6 +15,14 @@ namespace KitchenECSExplorer
         Error
     }
 
+    internal enum ComponentTypeClassification
+    {
+        None,
+        Data,
+        SharedData,
+        Buffer
+    }
+
 
     internal struct EntityData
     {
@@ -25,6 +33,7 @@ namespace KitchenECSExplorer
     internal struct ComponentData
     {
         public ComponentType Type;
+        public ComponentTypeClassification Classification;
         public ActionState State;
         public int FieldCount;
         public List<string> FieldNames;
@@ -126,20 +135,24 @@ namespace KitchenECSExplorer
             data.FieldNames = new List<string>();
             data.FieldTypes = new List<Type>();
             data.FieldValues = new List<object>();
+            data.Classification = ComponentTypeClassification.None;
             int fieldDataObtainedCount = 0;
             if (EntityManager.HasComponent(entity, componentType))
             {
                 MethodInfo genericMethod = null;
                 if (componentType.IsSharedComponent)
                 {
+                    data.Classification = ComponentTypeClassification.SharedData;
                     genericMethod = mGetSharedComponentData.MakeGenericMethod(type);
                 }
-                //else if (componentType.IsBuffer)
-                //{
-                //    genericMethod = mGetBuffer.MakeGenericMethod(type);
-                //}
+                else if (componentType.IsBuffer)
+                {
+                    data.Classification = ComponentTypeClassification.Buffer;
+                    //    genericMethod = mGetBuffer.MakeGenericMethod(type);
+                }
                 else if (type.IsValueType && !type.IsPrimitive && !type.IsEnum)
                 {
+                    data.Classification = ComponentTypeClassification.Data;
                     genericMethod = mGetComponentData.MakeGenericMethod(type);
                 }
 
@@ -155,7 +168,7 @@ namespace KitchenECSExplorer
                     }
                 }
             }
-            data.State = data.FieldCount == fieldDataObtainedCount ? ActionState.Success : ActionState.Error;
+            data.State = (data.FieldCount == fieldDataObtainedCount || data.Classification == ComponentTypeClassification.Buffer) ? ActionState.Success : ActionState.Error;
             return data;
         }
     }
