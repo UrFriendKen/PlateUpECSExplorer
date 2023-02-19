@@ -5,7 +5,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Unity.Entities;
 using UnityEngine;
 
 namespace KitchenECSExplorer
@@ -227,7 +226,7 @@ namespace KitchenECSExplorer
         private static List<Type> VanillaGDOs = new List<Type>();
         private static List<Type> CustomGDOs = new List<Type>();
 
-        private GDOData SelectedGDO = null;
+        private ObjectData SelectedGDO = null;
         private Type SelectedGDOType = null;
         private bool IsSelectedVanilla = false;
         private MethodInfo GenericVanillaGetGDO = null;
@@ -243,7 +242,7 @@ namespace KitchenECSExplorer
             ButtonName = "GDOs";
         }
 
-        public override void OnInitialise()
+        protected override void OnInitialise()
         {
             foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
@@ -264,7 +263,7 @@ namespace KitchenECSExplorer
             Main.LogInfo($"Number of Custom GDOs = {CustomGDOs.Count}");
         }
 
-        public override void OnSetup() // This is called evey frame the menu is open, This is also where you draw your UnityGUI
+        protected override void OnSetup() // This is called evey frame the menu is open, This is also where you draw your UnityGUI
         {
 
             #region All Components List
@@ -366,7 +365,7 @@ namespace KitchenECSExplorer
                 {
                     if (GUILayout.Button(typeName, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.3f - 15f)))
                     {
-                        SelectedGDO = new GDOData(typeName, gDO);
+                        SelectedGDO = new ObjectData(typeName, gDO);
                     }
                 }
             }
@@ -375,7 +374,7 @@ namespace KitchenECSExplorer
 
             if (SelectedGDO != null)
             {
-                DrawHierarchy();
+                SelectedGDO = DrawObjectHierarchy(SelectedGDO, ref hierarchyScrollPosition);
             }
             GUILayout.EndHorizontal();
         }
@@ -386,61 +385,9 @@ namespace KitchenECSExplorer
             {
                 MethodInfo genericGetCustomGameDataObject = mGetCustomGameDataObject.MakeGenericMethod(SelectedGDOType);
                 var instance = genericGetCustomGameDataObject.Invoke(null, null);
-                SelectedGDO = new GDOData(SelectedGDOType.Name, instance);
+                SelectedGDO = new ObjectData(SelectedGDOType.Name, instance);
             }
-            DrawHierarchy();
-        }
-
-        private void DrawHierarchy(float? width = null)
-        {
-            if (SelectedGDO != null)
-            {
-                if (width.HasValue)
-                {
-                    float widthValue = width.Value;
-                    hierarchyScrollPosition = GUILayout.BeginScrollView(hierarchyScrollPosition, false, false, GUI.skin.horizontalScrollbar, GUI.skin.verticalScrollbar, GUILayout.Width(widthValue));
-                }
-                else
-                {
-                    hierarchyScrollPosition = GUILayout.BeginScrollView(hierarchyScrollPosition, false, false, GUI.skin.horizontalScrollbar, GUI.skin.verticalScrollbar);
-                }
-
-                DrawGDOData(SelectedGDO);
-
-                GUILayout.EndScrollView();
-            }
-            else
-            {
-                // Error Message
-            }
-        }
-
-        private GDOData DrawGDOData(GDOData data, int indentLevel = 0, int unitIndent = 20)
-        {
-            // Change indent to move label start position to the right
-            string label = "";
-            label += data.FieldDatas.Count > 0 || !data.IsInit? (data.IsExpanded? "▼ " : "▶ ") : "    ";
-            //label += $"{data.Name} ({data.Class})";
-            label += $"{data.Name}";
-            label += data.Value == null? " = null" : $" = {data.Value}";
-
-            GUILayout.BeginHorizontal();
-            GUILayout.Space(unitIndent * indentLevel);
-            if (GUILayout.Button(label, LabelLeftStyle, GUILayout.MinWidth(600)))
-            {
-                data.IsExpanded = !data.IsExpanded;
-            }
-            GUILayout.EndHorizontal();
-
-            if (data.IsExpanded)
-            {
-                for (int i = 0; i < data.FieldDatas.Count; i++)
-                {
-                    data.FieldDatas[i] = DrawGDOData(data.FieldDatas[i], indentLevel + 1, unitIndent);
-                }
-            }
-
-            return data;
+            SelectedGDO = DrawObjectHierarchy(SelectedGDO, ref hierarchyScrollPosition, SelectedGDOType.Name);
         }
     }
 }

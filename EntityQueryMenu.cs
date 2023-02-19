@@ -33,7 +33,7 @@ namespace KitchenECSExplorer
             ButtonName = "Entity Query";
         }
 
-        public override void OnInitialise()
+        protected override void OnInitialise()
         {
             int i = 0;
             foreach (var typeInfo in TypeManager.AllTypes.Where(componentType => 
@@ -53,7 +53,7 @@ namespace KitchenECSExplorer
             Main.LogInfo($"Number of components = {i}");
         }
 
-        public override void OnSetup() // This is called evey frame the menu is open, This is also where you draw your UnityGUI
+        protected override void OnSetup() // This is called evey frame the menu is open, This is also where you draw your UnityGUI
         {
             float windowWidth = 775f;
             float componentListWidth = windowWidth - 40f;
