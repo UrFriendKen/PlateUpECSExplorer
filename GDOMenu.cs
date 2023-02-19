@@ -224,8 +224,6 @@ namespace KitchenECSExplorer
         private static Vector2 vanillafilterScrollPosition = new Vector2(0, 0);
         private static Vector2 customsfilterScrollPosition = new Vector2(0, 0);
 
-        private static Dictionary<string, ComponentType> Components = new Dictionary<string, ComponentType>();
-
         private static List<Type> VanillaGDOs = new List<Type>();
         private static List<Type> CustomGDOs = new List<Type>();
 
@@ -233,6 +231,7 @@ namespace KitchenECSExplorer
         private Type SelectedGDOType = null;
         private bool IsSelectedVanilla = false;
         private MethodInfo GenericVanillaGetGDO = null;
+        private string GDOFilterText = "";
 
         private static Vector2 vanillaGDOInstanceListScrollPosition = new Vector2(0, 0);
         private static Vector2 hierarchyScrollPosition = new Vector2(0, 0);
@@ -344,6 +343,7 @@ namespace KitchenECSExplorer
             vanillaGDOInstanceListScrollPosition = new Vector2(0, 0);
             hierarchyScrollPosition = new Vector2(0, 0);
             GenericVanillaGetGDO = null;
+            GDOFilterText = string.Empty;
         }
 
         private void DrawVanilla()
@@ -356,14 +356,18 @@ namespace KitchenECSExplorer
             GUILayout.BeginHorizontal();
             GUILayout.BeginVertical();
             GUILayout.Label($"Derived Types ({SelectedGDOType.Name})", LabelCentreStyle, GUILayout.Width(windowWidth * 0.3f));
+            GDOFilterText = GUILayout.TextField(GDOFilterText, GUILayout.Width(windowWidth * 0.3f));
             vanillaGDOInstanceListScrollPosition = GUILayout.BeginScrollView(vanillaGDOInstanceListScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar, GUILayout.Width(windowWidth * 0.3f));
 
             foreach (var gDO in GenericVanillaGetGDO.Invoke(GameData.Main, null) as IEnumerable<object>)
             {
                 string typeName = gDO.ToString();
-                if (GUILayout.Button(typeName, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.3f - 15f)))
+                if (string.IsNullOrEmpty(GDOFilterText) || typeName.ToLower().Contains(GDOFilterText.ToLower()))
                 {
-                    SelectedGDO = new GDOData(typeName, gDO);
+                    if (GUILayout.Button(typeName, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.3f - 15f)))
+                    {
+                        SelectedGDO = new GDOData(typeName, gDO);
+                    }
                 }
             }
             GUILayout.EndScrollView();
@@ -371,7 +375,7 @@ namespace KitchenECSExplorer
 
             if (SelectedGDO != null)
             {
-                DrawHierarchy(windowWidth * 0.7f);
+                DrawHierarchy();
             }
             GUILayout.EndHorizontal();
         }
@@ -387,11 +391,19 @@ namespace KitchenECSExplorer
             DrawHierarchy();
         }
 
-        private void DrawHierarchy(float width = windowWidth)
+        private void DrawHierarchy(float? width = null)
         {
             if (SelectedGDO != null)
             {
-                hierarchyScrollPosition = GUILayout.BeginScrollView(hierarchyScrollPosition, false, false, GUI.skin.horizontalScrollbar, GUI.skin.verticalScrollbar, GUILayout.Width(width));
+                if (width.HasValue)
+                {
+                    float widthValue = width.Value;
+                    hierarchyScrollPosition = GUILayout.BeginScrollView(hierarchyScrollPosition, false, false, GUI.skin.horizontalScrollbar, GUI.skin.verticalScrollbar, GUILayout.Width(widthValue));
+                }
+                else
+                {
+                    hierarchyScrollPosition = GUILayout.BeginScrollView(hierarchyScrollPosition, false, false, GUI.skin.horizontalScrollbar, GUI.skin.verticalScrollbar);
+                }
 
                 DrawGDOData(SelectedGDO);
 
