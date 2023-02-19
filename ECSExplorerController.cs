@@ -32,6 +32,7 @@ namespace KitchenECSExplorer
 
     internal struct ComponentData
     {
+        public object Instance;
         public ComponentType Type;
         public ComponentTypeClassification Classification;
         public ActionState State;
@@ -128,6 +129,7 @@ namespace KitchenECSExplorer
         public ComponentData GetComponentData(Entity entity, ComponentType componentType)
         {
             ComponentData data = new ComponentData();
+            data.Instance = null;
             Type type = componentType.GetManagedType();
             data.Type = type;
             FieldInfo[] fields = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -158,12 +160,12 @@ namespace KitchenECSExplorer
 
                 if (genericMethod != null)
                 {
-                    var componentInstance = genericMethod.Invoke(EntityManager, new object[] { entity });
+                    data.Instance = genericMethod.Invoke(EntityManager, new object[] { entity });
                     foreach (var field in fields)
                     {
                         data.FieldNames.Add(field.Name);
                         data.FieldTypes.Add(field.FieldType);
-                        data.FieldValues.Add(field.GetValue(componentInstance));
+                        data.FieldValues.Add(field.GetValue(data.Instance));
                         fieldDataObtainedCount++;
                     }
                 }
