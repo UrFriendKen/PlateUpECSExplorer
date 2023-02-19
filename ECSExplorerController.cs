@@ -155,7 +155,6 @@ namespace KitchenECSExplorer
                     }
                 }
             }
-            Main.LogInfo(fieldDataObtainedCount);
             data.State = data.FieldCount == fieldDataObtainedCount ? ActionState.Success : ActionState.Error;
             return data;
         }
