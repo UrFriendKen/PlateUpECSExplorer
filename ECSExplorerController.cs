@@ -1,5 +1,6 @@
 ﻿using Kitchen;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -39,7 +40,10 @@ namespace KitchenECSExplorer
 
         internal static ECSExplorerController instance;
 
-        private MethodInfo mGetComponentData = typeof(EntityManager).GetMethod("GetComponentData");
+        private static readonly MethodInfo mGetComponentData = typeof(EntityManager).GetMethod("GetComponentData");
+        private static readonly MethodInfo mGetBuffer = typeof(EntityManager).GetMethod("GetBuffer");
+        private static readonly MethodInfo mGetSharedComponentData = typeof(EntityManager).GetMethod("GetSharedComponentData", new Type[] { typeof(Entity) });
+
 
         protected override void OnUpdate()
         {
@@ -115,27 +119,43 @@ namespace KitchenECSExplorer
         public ComponentData GetComponentData(Entity entity, ComponentType componentType)
         {
             ComponentData data = new ComponentData();
-            data.Type = componentType;
             Type type = componentType.GetManagedType();
+            data.Type = type;
             FieldInfo[] fields = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             data.FieldCount = fields.Count();
+            data.FieldNames = new List<string>();
+            data.FieldTypes = new List<Type>();
+            data.FieldValues = new List<object>();
             int fieldDataObtainedCount = 0;
             if (EntityManager.HasComponent(entity, componentType))
             {
-                MethodInfo genericMethod = mGetComponentData.MakeGenericMethod(type);
-                var componentInstance = genericMethod.Invoke(EntityManager, new object[] { entity });
-                data.FieldNames = new List<string>();
-                data.FieldTypes = new List<Type>();
-                data.FieldValues = new List<object>();
-                foreach (var field in fields)
+                MethodInfo genericMethod = null;
+                if (componentType.IsSharedComponent)
                 {
-                    data.FieldNames.Add(field.Name);
-                    data.FieldTypes.Add(field.FieldType);
-                    data.FieldValues.Add(field.GetValue(componentInstance));
-                    fieldDataObtainedCount++;
+                    genericMethod = mGetSharedComponentData.MakeGenericMethod(type);
+                }
+                //else if (componentType.IsBuffer)
+                //{
+                //    genericMethod = mGetBuffer.MakeGenericMethod(type);
+                //}
+                else if (type.IsValueType && !type.IsPrimitive && !type.IsEnum)
+                {
+                    genericMethod = mGetComponentData.MakeGenericMethod(type);
+                }
+
+                if (genericMethod != null)
+                {
+                    var componentInstance = genericMethod.Invoke(EntityManager, new object[] { entity });
+                    foreach (var field in fields)
+                    {
+                        data.FieldNames.Add(field.Name);
+                        data.FieldTypes.Add(field.FieldType);
+                        data.FieldValues.Add(field.GetValue(componentInstance));
+                        fieldDataObtainedCount++;
+                    }
                 }
             }
-
+            Main.LogInfo(fieldDataObtainedCount);
             data.State = data.FieldCount == fieldDataObtainedCount ? ActionState.Success : ActionState.Error;
             return data;
         }

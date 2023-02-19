@@ -36,9 +36,14 @@ namespace KitchenECSExplorer
         public override void OnInitialise()
         {
             int i = 0;
-            foreach (var typeInfo in TypeManager.AllTypes.Where(componentType => componentType.Category == TypeManager.TypeCategory.ComponentData))
+            foreach (var typeInfo in TypeManager.AllTypes.Where(componentType => 
+                componentType.Category == TypeManager.TypeCategory.ComponentData ||
+                //componentType.Category == TypeManager.TypeCategory.BufferData ||
+                componentType.Category == TypeManager.TypeCategory.ISharedComponentData ||
+                componentType.Category == TypeManager.TypeCategory.EntityData
+                ))
             {
-                if (typeInfo.Type != null && typeInfo.Category == TypeManager.TypeCategory.ComponentData && !ComponentNames.Contains(typeInfo.Type.Name))
+                if (typeInfo.Type != null && !ComponentNames.Contains(typeInfo.Type.Name))
                 {
                     i++;
                     ComponentNames.Add(typeInfo.Type.Name);
