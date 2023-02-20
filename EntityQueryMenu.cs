@@ -141,7 +141,7 @@ namespace KitchenECSExplorer
 
                 for (int i = 0; i < results.Count; i++)
                 {
-                    if (GUILayout.Button($"Entity {results[i].Entity.Index} ({results[i].NumberOfComponents})"))
+                    if (GUILayout.Button(results[i].LabelTextWithCount))
                     {
                         watchingEntities.Add(results[i]);
                         watchingEntitiesSelectedComponent.Add(null);
@@ -265,7 +265,7 @@ namespace KitchenECSExplorer
             Entity entity = entityData.Entity;
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label($"{(entity == default ? "" : $"Entity {entity.Index}")}", LabelCentreStyle, GUILayout.Width(windowWidth * 0.77f));
+            GUILayout.Label($"{(entity == default ? "" : entityData.LabelText)}", LabelCentreStyle, GUILayout.Width(windowWidth * 0.77f));
             if (GUILayout.Button(useHierarchy? "Hierarchy" : "Table", GUILayout.Width(windowWidth * 0.1f)))
             {
                 useHierarchy = !useHierarchy;
@@ -320,15 +320,6 @@ namespace KitchenECSExplorer
                 {
                     float componentDataWidth = windowWidth * 0.58f;
                     ComponentData data = ECSExplorerController.instance.GetComponentData(entity, componentType);
-
-                    //GUILayout.BeginVertical();
-                    //GUILayout.Label($"{componentType.GetManagedType()} ({data.Classification})", LabelCentreStyle);
-
-                    //GUILayout.BeginHorizontal();
-                    //GUILayout.Label("Name", LabelCentreStyle, GUILayout.Width(componentDataWidth * 0.23f));
-                    //GUILayout.Label("Type", LabelCentreStyle, GUILayout.Width(componentDataWidth * 0.4f));
-                    //GUILayout.Label("Value", LabelCentreStyle, GUILayout.Width(componentDataWidth * 0.3f));
-                    //GUILayout.EndHorizontal();
 
                     GUILayout.BeginVertical();
                     GUILayout.Label($"{componentType.GetManagedType()} ({data.Classification})", LabelCentreStyle);

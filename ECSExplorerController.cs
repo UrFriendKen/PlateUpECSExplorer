@@ -1,4 +1,6 @@
 ﻿using Kitchen;
+using KitchenData;
+using KitchenLib.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -27,7 +29,10 @@ namespace KitchenECSExplorer
     internal struct EntityData
     {
         public Entity Entity;
+        public string LabelText;
+        public string LabelTextWithCount;
         public int NumberOfComponents;
+        public List<ComponentType> ComponentTypes;
     }
 
     internal struct ComponentData
@@ -70,16 +75,54 @@ namespace KitchenECSExplorer
 
                 foreach (Entity entity in entities)
                 {
-                    NativeArray<ComponentType> components = EntityManager.GetComponentTypes(entity);
+                    List<ComponentType> components = EntityManager.GetComponentTypes(entity).ToList();
                     int count = components.Count();
-                    components.Dispose();
+                    GetLabelText(entity, count, components, out string labelWithoutCount, out string labelWithCount);
                     entityData.Add(new EntityData()
                     {
                         Entity = entity,
+                        LabelText = labelWithoutCount,
+                        LabelTextWithCount = labelWithCount,
+                        ComponentTypes = components,
                         NumberOfComponents = count
                     });
                 }
                 entities.Dispose();
+            }
+        }
+
+        protected void GetLabelText(Entity entity, int componentCount, List<ComponentType> components, out string textWithoutComponentCount, out string textWithComponentCount)
+        {
+            string name = null;
+            if (Require(entity, out CAppliance appliance))
+            {
+                name = GameData.Main.Get<Appliance>(appliance.ID).name;
+            }
+            else if (Require(entity, out CItem item))
+            {
+                name = GameData.Main.Get<Item>(item.ID).name;
+            }
+            else if (Require(entity, out CPlayer upgrade))
+            {
+                name = "Player";
+            }
+            else if (Require(entity, out CRequiresView view))
+            {
+                name = view.Type.ToString();
+            }
+            else if (componentCount == 1)
+            {
+                name = $"{components[0].GetManagedType().Name}";
+            }
+
+            string entityIndex = $"Entity {entity.Index}";
+            textWithoutComponentCount = $"{entityIndex}";
+            textWithComponentCount = $"{entityIndex} - {componentCount}";
+            if (name != null)
+            {
+                string formattedName = $" ({name})";
+                textWithoutComponentCount += formattedName;
+                textWithComponentCount += formattedName;
             }
         }
 
