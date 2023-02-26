@@ -1,8 +1,6 @@
 ﻿using Kitchen;
 using KitchenData;
-using KitchenLib.Utils;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -58,7 +56,6 @@ namespace KitchenECSExplorer
         private static readonly MethodInfo mGetComponentData = typeof(EntityManager).GetMethod("GetComponentData");
         private static readonly MethodInfo mGetBuffer = typeof(EntityManager).GetMethod("GetBuffer");
         private static readonly MethodInfo mGetSharedComponentData = typeof(EntityManager).GetMethod("GetSharedComponentData", new Type[] { typeof(Entity) });
-
 
         protected override void OnUpdate()
         {
@@ -162,6 +159,11 @@ namespace KitchenECSExplorer
         public static List<EntityData> GetQueryResult()
         {
             return entityData;
+        }
+
+        public static void Destroy(EntityData entityData)
+        {
+            instance.EntityManager.DestroyEntity(entityData.Entity);
         }
 
         public static List<ComponentType> GetAllEntityComponents(Entity entity)

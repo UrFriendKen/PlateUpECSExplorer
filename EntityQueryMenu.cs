@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using Unity.Entities;
+using Unity.Entities.UniversalDelegates;
 using UnityEngine;
 
 namespace KitchenECSExplorer
@@ -141,7 +142,8 @@ namespace KitchenECSExplorer
 
                 for (int i = 0; i < results.Count; i++)
                 {
-                    if (GUILayout.Button(results[i].LabelTextWithCount))
+                    GUILayout.BeginHorizontal();
+                    if (GUILayout.Button(results[i].LabelTextWithCount, GUILayout.Width(windowWidth * 0.8f)))
                     {
                         watchingEntities.Add(results[i]);
                         watchingEntitiesSelectedComponent.Add(null);
@@ -156,6 +158,14 @@ namespace KitchenECSExplorer
                         watchingEntitiesDisplayUseHierarchy.Add(useHierarchy);
                         watchingEntitiesComponentObjectData.Add(null);
                     }
+                    if (GUILayout.Button("Destroy"))
+                    {
+                        TryRemoveWatchingEntity(results[i]);
+                        ECSExplorerController.Destroy(results[i]);
+                        results.RemoveAt(i);
+                        i--;
+                    }
+                    GUILayout.EndHorizontal();
                 }
                 GUILayout.EndScrollView();
             }
@@ -190,17 +200,32 @@ namespace KitchenECSExplorer
                 toRemove.Reverse();
                 foreach (int i in toRemove)
                 {
-                    watchingEntities.RemoveAt(i);
-                    watchingEntitiesSelectedComponent.RemoveAt(i);
-                    watchingEntitiesComponentsScrollPosition.RemoveAt(i);
-                    watchingEntitiesComponentInfoScrollPosition.RemoveAt(i);
-                    watchingEntitiesDisplayUseHierarchy.RemoveAt(i);
-                    watchingEntitiesComponentObjectData.RemoveAt(i);
+                    RemoveWatchingEntityAt(i);
                 }
 
                 GUILayout.EndScrollView();
                 GUILayout.EndArea();
             }
+        }
+
+        private bool TryRemoveWatchingEntity(EntityData entityData)
+        {
+            if (watchingEntities.Contains(entityData))
+            {
+                RemoveWatchingEntityAt(watchingEntities.IndexOf(entityData));
+                return true;
+            }
+            return false;
+        }
+
+        private void RemoveWatchingEntityAt(int i)
+        {
+            watchingEntities.RemoveAt(i);
+            watchingEntitiesSelectedComponent.RemoveAt(i);
+            watchingEntitiesComponentsScrollPosition.RemoveAt(i);
+            watchingEntitiesComponentInfoScrollPosition.RemoveAt(i);
+            watchingEntitiesDisplayUseHierarchy.RemoveAt(i);
+            watchingEntitiesComponentObjectData.RemoveAt(i);
         }
 
         private ComponentType[] ParseQueryArray(List<string> componentNames)
