@@ -1,4 +1,5 @@
-﻿using KitchenLib;
+﻿using Kitchen;
+using KitchenLib;
 using KitchenMods;
 using System.Reflection;
 using UnityEngine;
@@ -13,7 +14,7 @@ namespace KitchenECSExplorer
         // Mod Version must follow semver notation e.g. "1.2.3"
         public const string MOD_GUID = "IcedMilo.PlateUp.PlateUpExplorer";
         public const string MOD_NAME = "PlateUp! Explorer";
-        public const string MOD_VERSION = "0.2.5";
+        public const string MOD_VERSION = "0.3.0";
         public const string MOD_AUTHOR = "IcedMilo";
         public const string MOD_GAMEVERSION = ">=1.1.4";
         // Game version this mod is designed for in semver
@@ -32,6 +33,7 @@ namespace KitchenECSExplorer
         protected override void OnInitialise() 
         {
             LogWarning($"{MOD_GUID} v{MOD_VERSION} in use!");
+            RegisterMenu<AchievementMenu>();
             RegisterMenu<EntityQueryMenu>();
             RegisterMenu<GDOMenu>();
         }

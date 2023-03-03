@@ -91,17 +91,33 @@ namespace KitchenECSExplorer
         protected void GetLabelText(Entity entity, int componentCount, List<ComponentType> components, out string textWithoutComponentCount, out string textWithComponentCount)
         {
             string name = null;
-            if (Require(entity, out CAppliance appliance))
+            if (Require(entity, out CPlayer upgrade))
+            {
+                name = "Player";
+            }
+            else if (Require(entity, out CLetterIngredient letterIngredient))
+            {
+                name = $"Parcel - {GameData.Main.Get<Item>(letterIngredient.IngredientID).name}";
+            }
+            else if (Require(entity, out CLetterAppliance letterAppliance))
+            {
+                name = $"Parcel - {GameData.Main.Get<Appliance>(letterAppliance.ApplianceID).name}";
+            }
+            else if (Require(entity, out CLetterBlueprint letterBlueprint))
+            {
+                name = $"Letter - {GameData.Main.Get<Appliance>(letterBlueprint.ApplianceID).name}";
+            }
+            else if (Require(entity, out CCrateAppliance crateAppliance))
+            {
+                name = "Crate - " + GameData.Main.Get<Appliance>(crateAppliance.Appliance).name;
+            }
+            else if (Require(entity, out CAppliance appliance))
             {
                 name = GameData.Main.Get<Appliance>(appliance.ID).name;
             }
             else if (Require(entity, out CItem item))
             {
                 name = GameData.Main.Get<Item>(item.ID).name;
-            }
-            else if (Require(entity, out CPlayer upgrade))
-            {
-                name = "Player";
             }
             else if (Require(entity, out CRequiresView view))
             {
