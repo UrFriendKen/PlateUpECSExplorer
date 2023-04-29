@@ -31,10 +31,6 @@ namespace KitchenECSExplorer
                 GUILayout.BeginHorizontal(GUILayout.Width(rowWidth));
                 Achievement achievement = achievements[i];
                 GUILayout.Label($"{achievement.Name} ({(achievement.UnlockTime == null? "Not unlocked" : achievement.UnlockTime)})", LabelLeftStyle);
-                if (GUILayout.Button("Unlock", GUILayout.Width(0.1f * rowWidth)) && achievement.UnlockTime == null)
-                {
-                    achievement.Trigger();
-                }
                 if (GUILayout.Button("Clear", GUILayout.Width(0.1f * rowWidth)) && achievement.UnlockTime != null)
                 {
                     achievement.Clear();
