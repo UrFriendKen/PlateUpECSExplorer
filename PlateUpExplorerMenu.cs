@@ -12,9 +12,7 @@ namespace KitchenECSExplorer
         protected GUIStyle LabelLeftStyle { get; private set; }
         protected GUIStyle LabelCentreStyle { get; private set; }
         protected GUIStyle LabelMiddleCentreStyle { get; private set; }
-
         protected GUIStyle ButtonLeftStyle { get; private set; }
-
         protected Texture2D Background { get; private set; }
         public sealed override void OnInit()
         {

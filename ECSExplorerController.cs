@@ -1,4 +1,6 @@
-﻿using Kitchen;
+﻿using Controllers;
+using Kitchen;
+using Kitchen.ShopBuilder;
 using KitchenData;
 using System;
 using System.Collections.Generic;
@@ -91,41 +93,115 @@ namespace KitchenECSExplorer
         protected void GetLabelText(Entity entity, int componentCount, List<ComponentType> components, out string textWithoutComponentCount, out string textWithComponentCount)
         {
             string name = null;
-            if (Require(entity, out CPlayer upgrade))
+            if (Require(entity, out CPlayer player))
             {
-                name = "Player";
+                name = $"Player - {Players.Main.Get(player.ID).Username}";
             }
-            else if (Require(entity, out CLetterIngredient letterIngredient))
+            else if (Require(entity, out CExpGrant expGrant))
             {
-                name = $"Parcel - {GameData.Main.Get<Item>(letterIngredient.IngredientID).name}";
+                name = $"Exp Grant";
             }
-            else if (Require(entity, out CLetterAppliance letterAppliance))
+            else if (Require(entity, out CDishUpgrade dishUpgrade) && GameData.Main.TryGet(dishUpgrade.DishID, out Dish dishGDO))
             {
-                name = $"Parcel - {GameData.Main.Get<Appliance>(letterAppliance.ApplianceID).name}";
+                name = $"Dish Upgrade - {dishGDO.Name}";
             }
-            else if (Require(entity, out CLetterBlueprint letterBlueprint))
+            else if (Require(entity, out CSettingUpgrade settingUpgrade) && GameData.Main.TryGet(settingUpgrade.SettingID, out RestaurantSetting restaurantSettingGDO))
             {
-                name = $"Letter - {GameData.Main.Get<Appliance>(letterBlueprint.ApplianceID).name}";
+                name = $"Setting Upgrade - {restaurantSettingGDO.name}";
             }
-            else if (Require(entity, out CCrateAppliance crateAppliance))
+            else if (Require(entity, out CLayoutUpgrade layoutUpgrade) && GameData.Main.TryGet(layoutUpgrade.LayoutID, out LayoutProfile layoutProfileGDO))
             {
-                name = "Crate - " + GameData.Main.Get<Appliance>(crateAppliance.Appliance).name;
+                name = $"Layout Upgrade - {layoutProfileGDO.name}";
             }
-            else if (Require(entity, out CAppliance appliance))
+            else if (Has<CUpgradeExtraLayout>(entity))
             {
-                name = GameData.Main.Get<Appliance>(appliance.ID).name;
+                name = $"Franchise Upgrade - Extra Layout Choice";
             }
-            else if (Require(entity, out CItem item))
+            else if (Has<CUpgradeExtraDish>(entity))
             {
-                name = GameData.Main.Get<Item>(item.ID).name;
+                name = $"Franchise Upgrade - Extra Dish Choice";
+            }
+            else if (Require(entity, out CUpgrade upgrade))
+            {
+                name = $"{(upgrade.IsFromLevel? "Level" : string.Empty)}Upgrade";
+            }
+            else if (Require(entity, out CFranchiseTier franchiseTier))
+            {
+                string franchiseName = null;
+                if (Require(entity, out CFranchiseItem franchiseItem))
+                {
+                    franchiseName = $" ({franchiseItem.Name})";
+                }
+                name = $"Stored Franchise - Tier {franchiseTier.Tier}{franchiseName}";
+            }
+            else if (Has<RebuildKitchen.CFranchiseKitchenSlot>(entity))
+            {
+                name = $"Franchise Kitchen Slot";
+            }
+            else if (HasBuffer<CLayoutAppliancePlacement>(entity))
+            {
+                name = $"Map Blueprint Data";
+            }
+            else if (Require(entity, out CProgressionUnlock progressionUnlock) && GameData.Main.TryGet(progressionUnlock.ID, out Unlock unlockGDO))
+            {
+                name = $"Active Card - {unlockGDO.name}";
+            }
+            else if (Require(entity, out CLetterIngredient letterIngredient) && GameData.Main.TryGet(letterIngredient.IngredientID, out Item itemGDO))
+            {
+                name = $"Parcel - {itemGDO.name}";
+            }
+            else if (Require(entity, out CLetterAppliance letterAppliance) && GameData.Main.TryGet(letterAppliance.ApplianceID, out Appliance applianceGDO))
+            {
+                name = $"Parcel - {applianceGDO.name}";
+            }
+            else if (Require(entity, out CLetterBlueprint letterBlueprint) && GameData.Main.TryGet(letterBlueprint.ApplianceID, out applianceGDO))
+            {
+                name = $"Letter - {applianceGDO.name}";
+            }
+            else if (Require(entity, out CCrateAppliance crateAppliance) && GameData.Main.TryGet(crateAppliance.Appliance, out applianceGDO))
+            {
+                name = $"Crate - {applianceGDO.name}";
+            }
+            else if (Require(entity, out CAppliance appliance) && GameData.Main.TryGet(appliance.ID, out applianceGDO))
+            {
+                name = $"Appliance - {applianceGDO.name}";
+            }
+            else if (Require(entity, out CItem item) && GameData.Main.TryGet(item.ID, out itemGDO))
+            {
+                name = $"Item - {itemGDO.name}";
+            }
+            else if (Require(entity, out CMenuItem menuItem) && GameData.Main.TryGet(menuItem.SourceDish, out dishGDO))
+            {
+                name = $"Menu Item - {dishGDO.name}";
+            }
+            else if (Require(entity, out CShopBuilderOption shopOption) && GameData.Main.TryGet(shopOption.Appliance, out applianceGDO))
+            {
+                name = $"Shop Option ({applianceGDO.name})";
             }
             else if (Require(entity, out CRequiresView view))
             {
-                name = view.Type.ToString();
+                name = $"View - {view.Type}";
             }
-            else if (componentCount == 1)
+            else if (Require(entity, out CHasIndicator hasIndicator))
             {
-                name = $"{components[0].GetManagedType().Name}";
+                name = $"Indicator - {hasIndicator.IndicatorType}";
+            }
+            else
+            {
+                List<(string, string)> singletonComponentTypes = components.Select(x => (x.GetManagedType().Name, x.GetManagedType().Namespace)).Where(x => x.Name.ToUpperInvariant().StartsWith("S")).ToList();
+                if (singletonComponentTypes.Count > 0)
+                {
+                    List<string> parsedSingletonNames = new List<string>();
+                    foreach ((string, string) singleton in singletonComponentTypes)
+                    {
+                        parsedSingletonNames.Add(singleton.Item1.ToLowerInvariant() != "sstate" ? singleton.Item1 : $"SState - {singleton.Item2}");
+                    }
+                    name = String.Join(", ", parsedSingletonNames);
+                }
+                else if (componentCount == 1)
+                {
+                    name = $"{components[0].GetManagedType().Name}";
+                }
             }
 
             string entityIndex = $"Entity {entity.Index}";
@@ -211,7 +287,7 @@ namespace KitchenECSExplorer
                 else if (componentType.IsBuffer)
                 {
                     data.Classification = ComponentTypeClassification.Buffer;
-                    //    genericMethod = mGetBuffer.MakeGenericMethod(type);
+                    // genericMethod = mGetBuffer.MakeGenericMethod(type);
                 }
                 else if (type.IsValueType && !type.IsPrimitive && !type.IsEnum)
                 {
