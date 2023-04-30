@@ -1,5 +1,4 @@
-﻿using Controllers;
-using Kitchen;
+﻿using Kitchen;
 using Kitchen.ShopBuilder;
 using KitchenData;
 using System;
@@ -8,11 +7,13 @@ using System.Linq;
 using System.Reflection;
 using Unity.Collections;
 using Unity.Entities;
+using UnityEngine;
 
 namespace KitchenECSExplorer
 {
     internal enum ActionState
     {
+        BufferEmpty,
         Success,
         Error
     }
@@ -33,6 +34,10 @@ namespace KitchenECSExplorer
         public string LabelTextWithCount;
         public int NumberOfComponents;
         public List<ComponentType> ComponentTypes;
+        
+        public ComponentType SelectedComponentType;
+        public int SelectedBufferIndex;
+        public int BufferLength;
     }
 
     internal struct ComponentData
@@ -58,6 +63,7 @@ namespace KitchenECSExplorer
         private static readonly MethodInfo mGetComponentData = typeof(EntityManager).GetMethod("GetComponentData");
         private static readonly MethodInfo mGetBuffer = typeof(EntityManager).GetMethod("GetBuffer");
         private static readonly MethodInfo mGetSharedComponentData = typeof(EntityManager).GetMethod("GetSharedComponentData", new Type[] { typeof(Entity) });
+        private static readonly Type tDynamicBuffer = typeof(DynamicBuffer<>);
 
         protected override void OnUpdate()
         {
@@ -263,7 +269,7 @@ namespace KitchenECSExplorer
             return instance.EntityManager.GetComponentTypes(entity).ToList();
         }
 
-        public ComponentData GetComponentData(Entity entity, ComponentType componentType)
+        public ComponentData GetComponentData(Entity entity, ComponentType componentType, ref int selectedBufferIndex, ref int bufferLength)
         {
             ComponentData data = new ComponentData();
             data.Instance = null;
@@ -287,7 +293,7 @@ namespace KitchenECSExplorer
                 else if (componentType.IsBuffer)
                 {
                     data.Classification = ComponentTypeClassification.Buffer;
-                    // genericMethod = mGetBuffer.MakeGenericMethod(type);
+                    genericMethod = mGetBuffer.MakeGenericMethod(type);
                 }
                 else if (type.IsValueType && !type.IsPrimitive && !type.IsEnum)
                 {
@@ -297,17 +303,62 @@ namespace KitchenECSExplorer
 
                 if (genericMethod != null)
                 {
-                    data.Instance = genericMethod.Invoke(EntityManager, new object[] { entity });
-                    foreach (var field in fields)
+                    object componentInstance = genericMethod.Invoke(EntityManager, new object[] { entity });
+                    switch (data.Classification)
                     {
-                        data.FieldNames.Add(field.Name);
-                        data.FieldTypes.Add(field.FieldType);
-                        data.FieldValues.Add(field.GetValue(data.Instance));
-                        fieldDataObtainedCount++;
+                        case ComponentTypeClassification.SharedData:
+                        case ComponentTypeClassification.Data:
+                            data.Instance = componentInstance;
+                            break;
+                        case ComponentTypeClassification.Buffer:
+                            dynamic buffer = componentInstance;
+                            bufferLength = buffer.Length;
+                            if (!(buffer.Length > 0))
+                            {
+                                selectedBufferIndex = -1;
+                                data.Instance = null;
+                            }
+                            else
+                            {
+                                selectedBufferIndex = Mathf.Clamp(selectedBufferIndex, 0, buffer.Length - 1);
+                                data.Instance = buffer[selectedBufferIndex]; // To loop through buffer
+                            }
+                            break;
+                    }
+
+                    if (data.Instance != null)
+                    {
+                        foreach (var field in fields)
+                        {
+                            data.FieldNames.Add(field.Name);
+                            data.FieldTypes.Add(field.FieldType);
+                            data.FieldValues.Add(field.GetValue(data.Instance));
+                            fieldDataObtainedCount++;
+                        }
                     }
                 }
             }
-            data.State = (data.FieldCount == fieldDataObtainedCount || data.Classification == ComponentTypeClassification.Buffer) ? ActionState.Success : ActionState.Error;
+
+            if (data.Classification == ComponentTypeClassification.None)
+            {
+                bufferLength = 0;
+                data.State = ActionState.Error;
+            }
+            else if (data.FieldCount != fieldDataObtainedCount)
+            {
+                if (data.Classification == ComponentTypeClassification.Buffer && selectedBufferIndex == -1)
+                {
+                    data.State = ActionState.BufferEmpty;
+                }
+                else
+                {
+                    data.State = ActionState.Error;
+                }
+            }
+            else
+            {
+                data.State = ActionState.Success;
+            }
             return data;
         }
     }

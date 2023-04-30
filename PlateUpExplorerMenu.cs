@@ -292,13 +292,13 @@ namespace KitchenECSExplorer
                 scrollPosition = GUILayout.BeginScrollView(scrollPosition, false, false, GUI.skin.horizontalScrollbar, GUI.skin.verticalScrollbar);
             }
 
-            objectData = DrawGDOData(objectData);
+            objectData = DrawObject(objectData);
             GUILayout.EndScrollView();
 
             return objectData;
         }
 
-        private ObjectData DrawGDOData(ObjectData data, int indentLevel = 0, int unitIndent = 20)
+        private ObjectData DrawObject(ObjectData data, int indentLevel = 0, int unitIndent = 20)
         {
             // Change indent to move label start position to the right
             string label = "";
@@ -319,7 +319,7 @@ namespace KitchenECSExplorer
             {
                 for (int i = 0; i < data.FieldDatas.Count; i++)
                 {
-                    data.FieldDatas[i] = DrawGDOData(data.FieldDatas[i], indentLevel + 1, unitIndent);
+                    data.FieldDatas[i] = DrawObject(data.FieldDatas[i], indentLevel + 1, unitIndent);
                 }
             }
 

@@ -23,7 +23,6 @@ namespace KitchenECSExplorer
         private static Vector2 resultsScrollPosition = new Vector2(0, 0);
 
         private static List<EntityData> watchingEntities = new List<EntityData>();
-        private static List<ComponentType> watchingEntitiesSelectedComponent = new List<ComponentType>();
         private static List<bool> watchingEntitiesDisplayUseHierarchy = new List<bool>();
         private static List<ObjectData> watchingEntitiesComponentObjectData = new List<ObjectData>();
         private static Vector2 watchingEntitiesScrollPosition = new Vector2(0, 0);
@@ -145,7 +144,6 @@ namespace KitchenECSExplorer
                     if (GUILayout.Button(results[i].LabelTextWithCount, GUILayout.Width(windowWidth * 0.8f)))
                     {
                         watchingEntities.Add(results[i]);
-                        watchingEntitiesSelectedComponent.Add(null);
                         watchingEntitiesComponentsScrollPosition.Add(new Vector2(0, 0));
                         watchingEntitiesComponentInfoScrollPosition.Add(new Vector2(0, 0));
 
@@ -183,14 +181,15 @@ namespace KitchenECSExplorer
                 {
                     Vector2 newScrollPosition = watchingEntitiesComponentsScrollPosition[i];
                     Vector2 newScrollPostion2 = watchingEntitiesComponentInfoScrollPosition[i];
-                    ComponentType selectedComponentType = watchingEntitiesSelectedComponent[i];
+                    EntityData entityData = watchingEntities[i];
                     bool useHierarchy = watchingEntitiesDisplayUseHierarchy[i];
                     ObjectData objectData = watchingEntitiesComponentObjectData[i];
-                    if (DrawEntityData(watchingEntities[i], windowWidth, ref newScrollPosition, ref newScrollPostion2, ref selectedComponentType, ref useHierarchy, ref objectData))
+                    if (DrawEntityData(ref entityData, windowWidth, ref newScrollPosition, ref newScrollPostion2, ref useHierarchy, ref objectData))
                     {
+                        entityData.SelectedComponentType = null;
                         toRemove.Add(i);
                     }
-                    watchingEntitiesSelectedComponent[i] = selectedComponentType;
+                    watchingEntities[i] = entityData;
                     watchingEntitiesComponentsScrollPosition[i] = newScrollPosition;
                     watchingEntitiesComponentInfoScrollPosition[i] = newScrollPostion2;
                     watchingEntitiesDisplayUseHierarchy[i] = useHierarchy;
@@ -220,7 +219,6 @@ namespace KitchenECSExplorer
         private void RemoveWatchingEntityAt(int i)
         {
             watchingEntities.RemoveAt(i);
-            watchingEntitiesSelectedComponent.RemoveAt(i);
             watchingEntitiesComponentsScrollPosition.RemoveAt(i);
             watchingEntitiesComponentInfoScrollPosition.RemoveAt(i);
             watchingEntitiesDisplayUseHierarchy.RemoveAt(i);
@@ -281,7 +279,7 @@ namespace KitchenECSExplorer
             GUILayout.EndScrollView();
         }
 
-        private bool DrawEntityData(EntityData entityData, float windowWidth, ref Vector2 componentsScrollPosition, ref Vector2 componentsInfoScrollPosition, ref ComponentType componentType, ref bool useHierarchy, ref ObjectData objectData, float width = -1f)
+        private bool DrawEntityData(ref EntityData entityData, float windowWidth, ref Vector2 componentsScrollPosition, ref Vector2 componentsInfoScrollPosition, ref bool useHierarchy, ref ObjectData objectData)
         {
             bool closeButtonPressed = false;
 
@@ -322,7 +320,8 @@ namespace KitchenECSExplorer
                     {
                         if (GUILayout.Button(componentName))
                         {
-                            componentType = components[i];
+                            entityData.SelectedComponentType = components[i];
+                            entityData.SelectedBufferIndex = 0;
                             objectData = null;
                         }
                     }
@@ -333,12 +332,12 @@ namespace KitchenECSExplorer
                 }
                 GUILayout.EndScrollView();
 
-                if (componentType == null)
+                if (entityData.SelectedComponentType == default)
                 {
                     GUILayout.Label("Select a component", LabelMiddleCentreStyle);
                     componentsInfoScrollPosition = new Vector2(0, 0);
                 }
-                else if (!components.Contains(componentType))
+                else if (!components.Contains(entityData.SelectedComponentType))
                 {
                     GUILayout.Label("Component is removed!", LabelMiddleCentreStyle);
                     componentsInfoScrollPosition = new Vector2(0, 0);
@@ -346,10 +345,10 @@ namespace KitchenECSExplorer
                 else
                 {
                     float componentDataWidth = windowWidth * 0.58f;
-                    ComponentData data = ECSExplorerController.instance.GetComponentData(entity, componentType);
+                    ComponentData data = ECSExplorerController.instance.GetComponentData(entity, entityData.SelectedComponentType, ref entityData.SelectedBufferIndex, ref entityData.BufferLength);
 
                     GUILayout.BeginVertical();
-                    GUILayout.Label($"{componentType.GetManagedType()} ({data.Classification})", LabelCentreStyle);
+                    GUILayout.Label($"{entityData.SelectedComponentType.GetManagedType()} ({data.Classification})", LabelCentreStyle);
 
 
                     if (data.State == ActionState.Error)
@@ -377,48 +376,21 @@ namespace KitchenECSExplorer
                     {
                         GUILayout.Label("No fields", LabelMiddleCentreStyle);
                     }
+                    else if (data.Classification == ComponentTypeClassification.Buffer && entityData.SelectedBufferIndex == -1)
+                    {
+                        GUILayout.Label("No buffer elements", LabelMiddleCentreStyle);
+                    }
                     else
                     {
-                        if (useHierarchy)
+                        switch (data.Classification)
                         {
-                            GUILayout.Label("---------------- Note: Hierarchy View does not auto-update ----------------", LabelCentreStyle);
-                        }
-
-                        if (data.Classification == ComponentTypeClassification.Buffer)
-                        {
-                            GUILayout.Label("Buffer Component inspection is unsupported", LabelMiddleCentreStyle);
-                        }
-                        else
-                        {
-                            if (useHierarchy)
-                            {
-                                if (objectData == null)
-                                {
-                                    objectData = new ObjectData($"{componentType.GetManagedType()} ({data.Classification})", data.Instance);
-                                }
-                                objectData = DrawObjectHierarchy(objectData, ref componentsInfoScrollPosition);
-                            }
-                            else
-                            {
-                                GUILayout.BeginHorizontal();
-                                GUILayout.Label("Name", LabelCentreStyle, GUILayout.Width(componentDataWidth * 0.23f));
-                                GUILayout.Label("Type", LabelCentreStyle, GUILayout.Width(componentDataWidth * 0.4f));
-                                GUILayout.Label("Value", LabelCentreStyle, GUILayout.Width(componentDataWidth * 0.3f));
-                                GUILayout.EndHorizontal();
-
-                                componentsInfoScrollPosition = GUILayout.BeginScrollView(componentsInfoScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar, GUILayout.Width(componentDataWidth));
-                                for (int i = 0; i < data.FieldCount; i++)
-                                {
-                                    GUILayout.BeginHorizontal();
-
-                                    GUILayout.Label(data.FieldNames[i], LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.23f));
-                                    GUILayout.Label(data.FieldTypes[i].ToString(), LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.38f));
-                                    GUILayout.Label(data.FieldValues[i].ToString(), LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.3f));
-
-                                    GUILayout.EndHorizontal();
-                                }
-                                GUILayout.EndScrollView();
-                            }
+                            case ComponentTypeClassification.SharedData:
+                            case ComponentTypeClassification.Data:
+                                DrawComponentData(data, entityData, ref objectData, useHierarchy, componentDataWidth, ref componentsInfoScrollPosition);
+                                break;
+                            case ComponentTypeClassification.Buffer:
+                                DrawBufferData(data, entityData, ref objectData, useHierarchy, ref entityData.SelectedBufferIndex, entityData.BufferLength, componentDataWidth, ref componentsInfoScrollPosition);
+                                break;
                         }
                     }
                     GUILayout.EndVertical();
@@ -432,6 +404,79 @@ namespace KitchenECSExplorer
             GUILayout.EndHorizontal();
             return closeButtonPressed;
         }
-    }
 
+        private void DrawComponentData(ComponentData data, EntityData entityData, ref ObjectData objectData, bool useHierarchy, float componentDataWidth, ref Vector2 componentsInfoScrollPosition)
+        {
+            if (useHierarchy)
+            {
+                DrawHierarchy(ref objectData, entityData, data, ref componentsInfoScrollPosition);
+            }
+            else
+            {
+                DrawComponentFieldTable(data, componentDataWidth, objectData, ref componentsInfoScrollPosition);
+            }
+        }
+
+        private void DrawBufferData(ComponentData data, EntityData entityData, ref ObjectData objectData, bool useHierarchy, ref int selectedBufferIndex, in int bufferCount, float componentDataWidth, ref Vector2 componentsInfoScrollPosition)
+        {
+            bool indexChanged = false;
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Previous", GUILayout.Width(componentDataWidth * 0.2f)))
+            {
+                indexChanged = true;
+                selectedBufferIndex--;
+            }
+            GUILayout.Label($"Element {selectedBufferIndex + 1}/{bufferCount}", LabelCentreStyle, GUILayout.Width(componentDataWidth * 0.6f));
+            if (GUILayout.Button("Next", GUILayout.Width(componentDataWidth * 0.2f)))
+            {
+                indexChanged = true;
+                selectedBufferIndex++;
+            }
+            GUILayout.EndHorizontal();
+
+            if (useHierarchy)
+            {
+                DrawHierarchy(ref objectData, entityData, data, ref componentsInfoScrollPosition);
+            }
+            else
+            {
+                DrawComponentFieldTable(data, componentDataWidth, objectData, ref componentsInfoScrollPosition);
+            }
+
+            if (indexChanged)
+            {
+                objectData = null;
+            }
+        }
+
+        private void DrawHierarchy(ref ObjectData objectData, EntityData entityData, ComponentData data, ref Vector2 componentsInfoScrollPosition)
+        {
+            GUILayout.Label("------------------ Note: Contents of hierarchy does not auto-update ------------------", LabelCentreStyle);
+            if (objectData == null)
+            {
+                objectData = new ObjectData($"{entityData.SelectedComponentType.GetManagedType()} ({data.Classification})", data.Instance);
+            }
+            objectData = DrawObjectHierarchy(objectData, ref componentsInfoScrollPosition);
+        }
+
+        private void DrawComponentFieldTable(ComponentData data, float componentDataWidth, ObjectData objectData, ref Vector2 componentsInfoScrollPosition)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Name", LabelCentreStyle, GUILayout.Width(componentDataWidth * 0.23f));
+            GUILayout.Label("Type", LabelCentreStyle, GUILayout.Width(componentDataWidth * 0.4f));
+            GUILayout.Label("Value", LabelCentreStyle, GUILayout.Width(componentDataWidth * 0.3f));
+            GUILayout.EndHorizontal();
+
+            componentsInfoScrollPosition = GUILayout.BeginScrollView(componentsInfoScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar, GUILayout.Width(componentDataWidth));
+            for (int i = 0; i < data.FieldCount; i++)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(data.FieldNames[i], LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.23f));
+                GUILayout.Label(data.FieldTypes[i].ToString(), LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.38f));
+                GUILayout.Label(data.FieldValues[i].ToString(), LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.3f));
+                GUILayout.EndHorizontal();
+            }
+            GUILayout.EndScrollView();
+        }
+    }
 }

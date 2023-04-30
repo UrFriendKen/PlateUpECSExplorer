@@ -48,6 +48,9 @@
 		<Reference Include="KitchenLib">
 			<HintPath>$(GamePath)\Mods\KitchenLib\content\KitchenLib-Workshop.dll</HintPath>
 		</Reference>
+		<Reference Include="Microsoft.CSharp">
+		  <HintPath>..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\PlateUp\PlateUp\PlateUp_Data\Managed\Microsoft.CSharp.dll</HintPath>
+		</Reference>
 	</ItemGroup>
 
 	<Target Name="BundleWorkshop" AfterTargets="Build" Condition="$(EnableModDeployLocal) == 'true'">
