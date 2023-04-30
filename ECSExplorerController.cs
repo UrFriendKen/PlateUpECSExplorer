@@ -127,9 +127,13 @@ namespace KitchenECSExplorer
             {
                 name = $"Franchise Upgrade - Extra Dish Choice";
             }
+            else if (Require(entity, out CCrateAppliance crateAppliance) && GameData.Main.TryGet(crateAppliance.Appliance, out Appliance applianceGDO))
+            {
+                name = $"Crate - {applianceGDO.name}";
+            }
             else if (Require(entity, out CUpgrade upgrade))
             {
-                name = $"{(upgrade.IsFromLevel? "Level" : string.Empty)}Upgrade";
+                name = $"{(upgrade.IsFromLevel ? "Level" : string.Empty)}Upgrade";
             }
             else if (Require(entity, out CFranchiseTier franchiseTier))
             {
@@ -156,17 +160,13 @@ namespace KitchenECSExplorer
             {
                 name = $"Parcel - {itemGDO.name}";
             }
-            else if (Require(entity, out CLetterAppliance letterAppliance) && GameData.Main.TryGet(letterAppliance.ApplianceID, out Appliance applianceGDO))
+            else if (Require(entity, out CLetterAppliance letterAppliance) && GameData.Main.TryGet(letterAppliance.ApplianceID, out applianceGDO))
             {
                 name = $"Parcel - {applianceGDO.name}";
             }
             else if (Require(entity, out CLetterBlueprint letterBlueprint) && GameData.Main.TryGet(letterBlueprint.ApplianceID, out applianceGDO))
             {
                 name = $"Letter - {applianceGDO.name}";
-            }
-            else if (Require(entity, out CCrateAppliance crateAppliance) && GameData.Main.TryGet(crateAppliance.Appliance, out applianceGDO))
-            {
-                name = $"Crate - {applianceGDO.name}";
             }
             else if (Require(entity, out CAppliance appliance) && GameData.Main.TryGet(appliance.ID, out applianceGDO))
             {
