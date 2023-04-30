@@ -173,8 +173,8 @@ namespace KitchenECSExplorer
 
             if (watchingEntities.Count > 0)
             {
-                GUILayout.BeginArea(new Rect(10f, 570f, windowWidth, 390f));
-                GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 390f), Background, ScaleMode.StretchToFill);
+                GUILayout.BeginArea(new Rect(10f, 570f, windowWidth, 490f));
+                GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 490f), Background, ScaleMode.StretchToFill);
                 watchingEntitiesScrollPosition = GUILayout.BeginScrollView(watchingEntitiesScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar);
 
 
@@ -281,15 +281,19 @@ namespace KitchenECSExplorer
             GUILayout.EndScrollView();
         }
 
-        private bool DrawEntityData(EntityData entityData, float windowWidth, ref Vector2 componentsScrollPosition, ref Vector2 componentsInfoScrollPosition, ref ComponentType componentType, ref bool useHierarchy, ref ObjectData objectData)
+        private bool DrawEntityData(EntityData entityData, float windowWidth, ref Vector2 componentsScrollPosition, ref Vector2 componentsInfoScrollPosition, ref ComponentType componentType, ref bool useHierarchy, ref ObjectData objectData, float width = -1f)
         {
             bool closeButtonPressed = false;
-            float rowHeight = 300f;
 
+            float scrollBarWidth = 20f;
+            GUILayout.BeginHorizontal();
+            GUILayout.BeginVertical();
+
+            float rowHeight = 300f;
             Entity entity = entityData.Entity;
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label($"{(entity == default ? "" : entityData.LabelText)}", LabelCentreStyle, GUILayout.Width(windowWidth * 0.77f));
+            GUILayout.Label($"{(entity == default ? "" : entityData.LabelText)}", LabelCentreStyle, GUILayout.Width(windowWidth * 0.76f));
             if (GUILayout.Button(useHierarchy? "Hierarchy" : "Table", GUILayout.Width(windowWidth * 0.1f)))
             {
                 useHierarchy = !useHierarchy;
@@ -299,7 +303,6 @@ namespace KitchenECSExplorer
             {
                 closeButtonPressed = true;
             }
-            GUILayout.Label("", GUILayout.Width(windowWidth * 0.03f));
             GUILayout.EndHorizontal();
 
             if (entity == default)
@@ -376,6 +379,11 @@ namespace KitchenECSExplorer
                     }
                     else
                     {
+                        if (useHierarchy)
+                        {
+                            GUILayout.Label("---------------- Note: Hierarchy View does not auto-update ----------------", LabelCentreStyle);
+                        }
+
                         if (data.Classification == ComponentTypeClassification.Buffer)
                         {
                             GUILayout.Label("Buffer Component inspection is unsupported", LabelMiddleCentreStyle);
@@ -419,6 +427,9 @@ namespace KitchenECSExplorer
                 GUILayout.EndHorizontal();
             }
 
+            GUILayout.EndVertical();
+            GUILayout.Label("", GUILayout.Width(scrollBarWidth));
+            GUILayout.EndHorizontal();
             return closeButtonPressed;
         }
     }
