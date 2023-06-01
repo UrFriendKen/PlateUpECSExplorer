@@ -1,7 +1,10 @@
 ﻿using Kitchen;
 using KitchenLib;
 using KitchenMods;
+using System;
+using System.Collections.Generic;
 using System.Reflection;
+using Unity.Entities;
 using UnityEngine;
 
 // Namespace should have "Kitchen" in the beginning
@@ -14,7 +17,7 @@ namespace KitchenECSExplorer
         // Mod Version must follow semver notation e.g. "1.2.3"
         public const string MOD_GUID = "IcedMilo.PlateUp.PlateUpExplorer";
         public const string MOD_NAME = "PlateUp! Explorer";
-        public const string MOD_VERSION = "0.3.2";
+        public const string MOD_VERSION = "0.3.4";
         public const string MOD_AUTHOR = "IcedMilo";
         public const string MOD_GAMEVERSION = ">=1.1.4";
         // Game version this mod is designed for in semver
@@ -36,10 +39,61 @@ namespace KitchenECSExplorer
             RegisterMenu<AchievementMenu>();
             RegisterMenu<EntityQueryMenu>();
             RegisterMenu<GDOMenu>();
+            RegisterMenu<SystemsMenu>();
         }
 
+
+        bool firstUpdate = true;
         protected override void OnUpdate()
         {
+            if (firstUpdate)
+            {
+                SystemsMenu.PopulateWorldSystems(GetSystemOrder());
+                firstUpdate = false;
+            }
+
+            Dictionary<Type, SystemsMenu.System> GetSystemOrder()
+            {
+                Dictionary<Type, SystemsMenu.System> topLevelSystems = new Dictionary<Type, SystemsMenu.System>();
+                Dictionary<Type, (SystemsMenu.System, int)> pendingSubsystems = new Dictionary<Type, (SystemsMenu.System, int)>();
+
+                foreach (var systemBase in World.Systems)
+                {
+                    var systemData = new SystemsMenu.System()
+                    {
+                        Name = systemBase.GetType().FullName
+                    };
+                    if (systemBase is ComponentSystemGroup systemGroup)
+                    {
+                        systemGroup.SortSystems();
+                        for (int i = 0; i < systemGroup.Systems.Count; i++)
+                        {
+                            var subsystem = systemGroup.Systems[i];
+                            if (topLevelSystems.TryGetValue(subsystem.GetType(), out var subsystemData))
+                            {
+                                systemData.AddSubsystem(subsystemData, i);
+                                topLevelSystems.Remove(subsystem.GetType());
+                            }
+                            else
+                            {
+                                pendingSubsystems.Add(subsystem.GetType(), (systemData, i));
+                            }
+                        }
+                    }
+
+                    if (pendingSubsystems.TryGetValue(systemBase.GetType(), out var parentSystemGroupAndIndex))
+                    {
+                        (SystemsMenu.System parentSystemGroup, int insertIndex) = parentSystemGroupAndIndex;
+                        parentSystemGroup.AddSubsystem(systemData, insertIndex);
+                        pendingSubsystems.Remove(systemBase.GetType());
+                    }
+                    else
+                    {
+                        topLevelSystems.Add(systemBase.GetType(), systemData);
+                    }
+                }
+                return topLevelSystems;
+            }
         }
 
         protected override void OnPostActivate(KitchenMods.Mod mod)

@@ -1,4 +1,5 @@
 ﻿using KitchenData;
+using KitchenLib.Customs;
 using KitchenLib.Utils;
 using System;
 using System.Collections;
@@ -226,13 +227,13 @@ namespace KitchenECSExplorer
         private static List<Type> VanillaGDOs = new List<Type>();
         private static List<Type> CustomGDOs = new List<Type>();
 
-        private ObjectData SelectedGDO = null;
+        private ObjectData selectedGDOInstance = null;
         private Type SelectedGDOType = null;
         private bool IsSelectedVanilla = false;
         private MethodInfo GenericVanillaGetGDO = null;
-        private string GDOFilterText = "";
+        private string instanceFilterText = "";
 
-        private static Vector2 vanillaGDOInstanceListScrollPosition = new Vector2(0, 0);
+        private static Vector2 gDOInstanceListScrollPosition = new Vector2(0, 0);
         private static Vector2 hierarchyScrollPosition = new Vector2(0, 0);
 
         private const float windowWidth = 775f;
@@ -265,7 +266,6 @@ namespace KitchenECSExplorer
 
         protected override void OnSetup() // This is called evey frame the menu is open, This is also where you draw your UnityGUI
         {
-
             #region All Components List
             GUILayout.BeginArea(new Rect(10f, 0f, windowWidth, 250f));
             GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 250f), Background, ScaleMode.StretchToFill);
@@ -337,12 +337,12 @@ namespace KitchenECSExplorer
         private void Clear()
         {
             SelectedGDOType = null;
-            SelectedGDO = null;
+            selectedGDOInstance = null;
             IsSelectedVanilla = false;
-            vanillaGDOInstanceListScrollPosition = new Vector2(0, 0);
+            gDOInstanceListScrollPosition = new Vector2(0, 0);
             hierarchyScrollPosition = new Vector2(0, 0);
             GenericVanillaGetGDO = null;
-            GDOFilterText = string.Empty;
+            instanceFilterText = string.Empty;
         }
 
         private void DrawVanilla()
@@ -351,43 +351,88 @@ namespace KitchenECSExplorer
             {
                 GenericVanillaGetGDO = mVanillaGetGDO.MakeGenericMethod(SelectedGDOType);
             }
+            DrawInstanceList(GenericVanillaGetGDO.Invoke(GameData.Main, null) as IEnumerable<object>);
 
+            //GUILayout.BeginHorizontal();
+            //GUILayout.BeginVertical();
+            //GUILayout.Label($"Derived Types ({SelectedGDOType.Name})", LabelCentreStyle, GUILayout.Width(windowWidth * 0.3f));
+            //instanceFilterText = GUILayout.TextField(instanceFilterText, GUILayout.Width(windowWidth * 0.3f));
+            //gDOInstanceListScrollPosition = GUILayout.BeginScrollView(gDOInstanceListScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar, GUILayout.Width(windowWidth * 0.3f));
+
+            //foreach (var gDO in GenericVanillaGetGDO.Invoke(GameData.Main, null) as IEnumerable<object>)
+            //{
+            //    string typeName = gDO.ToString();
+            //    if (string.IsNullOrEmpty(instanceFilterText) || typeName.ToLower().Contains(instanceFilterText.ToLower()))
+            //    {
+            //        if (GUILayout.Button(typeName, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.3f - 15f)))
+            //        {
+            //            selectedGDOInstance = new ObjectData(typeName, gDO);
+            //        }
+            //    }
+            //}
+            //GUILayout.EndScrollView();
+            //GUILayout.EndVertical();
+
+            //if (selectedGDOInstance != null)
+            //{
+            //    selectedGDOInstance = DrawObjectHierarchy(selectedGDOInstance, ref hierarchyScrollPosition);
+            //}
+            //GUILayout.EndHorizontal();
+        }
+
+        private void DrawCustom()
+        {
+            IEnumerable<CustomGameDataObject> instances;
+            if (SelectedGDOType.IsGenericTypeDefinition)
+            {
+                instances = CustomGDO.GDOs.Values.Where(x => x.GetType().IsConstructedGenericType && x.GetType().GetGenericTypeDefinition() == SelectedGDOType);
+            }
+            else
+            {
+                instances = CustomGDO.GDOs.Values.Where(x => SelectedGDOType.IsAssignableFrom(x.GetType()));
+            }
+
+            if (instances.Count() > 1)
+            {
+                DrawInstanceList(instances);
+                return;
+            }
+            if (selectedGDOInstance == null)
+            {
+                MethodInfo genericGetCustomGameDataObject = mGetCustomGameDataObject.MakeGenericMethod(SelectedGDOType);
+                var instance = genericGetCustomGameDataObject.Invoke(null, null);
+                selectedGDOInstance = new ObjectData(SelectedGDOType.Name, instance);
+            }
+            selectedGDOInstance = DrawObjectHierarchy(selectedGDOInstance, ref hierarchyScrollPosition, SelectedGDOType.Name);
+        }
+
+        private void DrawInstanceList(IEnumerable<object> instances)
+        {
             GUILayout.BeginHorizontal();
             GUILayout.BeginVertical();
             GUILayout.Label($"Derived Types ({SelectedGDOType.Name})", LabelCentreStyle, GUILayout.Width(windowWidth * 0.3f));
-            GDOFilterText = GUILayout.TextField(GDOFilterText, GUILayout.Width(windowWidth * 0.3f));
-            vanillaGDOInstanceListScrollPosition = GUILayout.BeginScrollView(vanillaGDOInstanceListScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar, GUILayout.Width(windowWidth * 0.3f));
+            instanceFilterText = GUILayout.TextField(instanceFilterText, GUILayout.Width(windowWidth * 0.3f));
+            gDOInstanceListScrollPosition = GUILayout.BeginScrollView(gDOInstanceListScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar, GUILayout.Width(windowWidth * 0.3f));
 
-            foreach (var gDO in GenericVanillaGetGDO.Invoke(GameData.Main, null) as IEnumerable<object>)
+            foreach (var instance in instances)
             {
-                string typeName = gDO.ToString();
-                if (string.IsNullOrEmpty(GDOFilterText) || typeName.ToLower().Contains(GDOFilterText.ToLower()))
+                string typeName = instance.ToString();
+                if (string.IsNullOrEmpty(instanceFilterText) || typeName.ToLower().Contains(instanceFilterText.ToLower()))
                 {
                     if (GUILayout.Button(typeName, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.3f - 15f)))
                     {
-                        SelectedGDO = new ObjectData(typeName, gDO);
+                        selectedGDOInstance = new ObjectData(typeName, instance);
                     }
                 }
             }
             GUILayout.EndScrollView();
             GUILayout.EndVertical();
 
-            if (SelectedGDO != null)
+            if (selectedGDOInstance != null)
             {
-                SelectedGDO = DrawObjectHierarchy(SelectedGDO, ref hierarchyScrollPosition);
+                selectedGDOInstance = DrawObjectHierarchy(selectedGDOInstance, ref hierarchyScrollPosition);
             }
             GUILayout.EndHorizontal();
-        }
-
-        private void DrawCustom()
-        {
-            if (SelectedGDO == null)
-            {
-                MethodInfo genericGetCustomGameDataObject = mGetCustomGameDataObject.MakeGenericMethod(SelectedGDOType);
-                var instance = genericGetCustomGameDataObject.Invoke(null, null);
-                SelectedGDO = new ObjectData(SelectedGDOType.Name, instance);
-            }
-            SelectedGDO = DrawObjectHierarchy(SelectedGDO, ref hierarchyScrollPosition, SelectedGDOType.Name);
         }
     }
 }
