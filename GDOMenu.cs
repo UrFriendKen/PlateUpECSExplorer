@@ -352,32 +352,6 @@ namespace KitchenECSExplorer
                 GenericVanillaGetGDO = mVanillaGetGDO.MakeGenericMethod(SelectedGDOType);
             }
             DrawInstanceList(GenericVanillaGetGDO.Invoke(GameData.Main, null) as IEnumerable<object>);
-
-            //GUILayout.BeginHorizontal();
-            //GUILayout.BeginVertical();
-            //GUILayout.Label($"Derived Types ({SelectedGDOType.Name})", LabelCentreStyle, GUILayout.Width(windowWidth * 0.3f));
-            //instanceFilterText = GUILayout.TextField(instanceFilterText, GUILayout.Width(windowWidth * 0.3f));
-            //gDOInstanceListScrollPosition = GUILayout.BeginScrollView(gDOInstanceListScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar, GUILayout.Width(windowWidth * 0.3f));
-
-            //foreach (var gDO in GenericVanillaGetGDO.Invoke(GameData.Main, null) as IEnumerable<object>)
-            //{
-            //    string typeName = gDO.ToString();
-            //    if (string.IsNullOrEmpty(instanceFilterText) || typeName.ToLower().Contains(instanceFilterText.ToLower()))
-            //    {
-            //        if (GUILayout.Button(typeName, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.3f - 15f)))
-            //        {
-            //            selectedGDOInstance = new ObjectData(typeName, gDO);
-            //        }
-            //    }
-            //}
-            //GUILayout.EndScrollView();
-            //GUILayout.EndVertical();
-
-            //if (selectedGDOInstance != null)
-            //{
-            //    selectedGDOInstance = DrawObjectHierarchy(selectedGDOInstance, ref hierarchyScrollPosition);
-            //}
-            //GUILayout.EndHorizontal();
         }
 
         private void DrawCustom()
@@ -416,8 +390,17 @@ namespace KitchenECSExplorer
 
             foreach (var instance in instances)
             {
-                string typeName = instance.ToString();
-                if (string.IsNullOrEmpty(instanceFilterText) || typeName.ToLower().Contains(instanceFilterText.ToLower()))
+                string typeName = $"{instance}";
+
+                bool show = string.IsNullOrEmpty(instanceFilterText);
+                if (!show)
+                    show = typeName.ToLower().Contains(instanceFilterText.ToLower());
+                if (!show)
+                    show = (instance is GameDataObject gdo) && gdo.ID.ToString().Contains(instanceFilterText);
+                if (!show)
+                    show = (instance is CustomGameDataObject customGdo) && customGdo.ID.ToString().Contains(instanceFilterText);
+
+                if (show)
                 {
                     if (GUILayout.Button(typeName, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.3f - 15f)))
                     {

@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using KitchenECSExplorer.Utils;
 using UnityEngine;
 
 namespace KitchenECSExplorer
@@ -77,8 +78,10 @@ namespace KitchenECSExplorer
 
         protected class ObjectData
         {
-            private enum TypeClassification
+            public enum TypeClassification
             {
+                Unknown,
+                Null,
                 Class,
                 Struct,
                 Native,
@@ -88,11 +91,13 @@ namespace KitchenECSExplorer
                 Enum,
                 Anonymous,
                 Tuple,
-                Unknown
+                Texture,
+                GameObject
             }
 
             public readonly string Name;
             public readonly Type Class;
+            public readonly TypeClassification Classification;
             public readonly object Value;
             public readonly List<ObjectData> FieldDatas;
 
@@ -123,20 +128,22 @@ namespace KitchenECSExplorer
 
                 if (Value != null)
                 {
-                    TypeClassification typeClassification = DetermineTypeClassification(Class);
-                    switch (typeClassification)
+                    Classification = DetermineTypeClassification(Class);
+                    switch (Classification)
                     {
                         case TypeClassification.Class:
                         case TypeClassification.Struct:
                         case TypeClassification.Collection:
                         case TypeClassification.Enum:
                         case TypeClassification.Tuple:
+                        case TypeClassification.GameObject:
                             IsInit = false;
                             break;
                         case TypeClassification.Native:
                         case TypeClassification.Interface:
                         case TypeClassification.Pointer:
                         case TypeClassification.Anonymous:
+                        case TypeClassification.Texture:
                         default:
                             IsInit = true;
                             break;
@@ -144,6 +151,7 @@ namespace KitchenECSExplorer
                 }
                 else
                 {
+                    Classification = TypeClassification.Null;
                     IsInit = true;
                 }
             }
@@ -154,8 +162,7 @@ namespace KitchenECSExplorer
                 {
                     return;
                 }
-                TypeClassification classification = DetermineTypeClassification(Class);
-                switch (classification)
+                switch (Classification)
                 {
                     case TypeClassification.Native:
                         break;
@@ -166,6 +173,12 @@ namespace KitchenECSExplorer
                         {
                             FieldInfo field = fields[i];
                             FieldDatas.Add(new ObjectData(field.Name, field.GetValue(Value)));
+                        }
+                        PropertyInfo[] properties = Class.GetProperties(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                        for (int i = 0; i < properties.Length; i++)
+                        {
+                            PropertyInfo property = properties[i];
+                            FieldDatas.Add(new ObjectData($"{property.Name} {{{(property.CanRead ? " get;" : string.Empty)}{(property.CanWrite ? " set;" : string.Empty)} }}", property.GetValue(Value)));
                         }
                         break;
                     case TypeClassification.Collection:
@@ -219,6 +232,21 @@ namespace KitchenECSExplorer
                             FieldDatas.Add(new ObjectData("Pointer", ptrValue.ToString()));
                         }
                         break;
+                    case TypeClassification.GameObject:
+                        if (Value != null)
+                        {
+                            GameObject gameObject = (GameObject)Value;
+                            Component[] components = gameObject.GetComponents<Component>();
+                            FieldDatas.Add(new ObjectData("Components", components));
+                            List<GameObject> children = new List<GameObject>();
+                            for (int i = 0; i < gameObject.transform.childCount; i++)
+                            {
+                                children.Add(gameObject.transform.GetChild(i).gameObject);
+                            }
+                            FieldDatas.Add(new ObjectData("Children", children.ToArray()));
+                            FieldDatas.Add(new ObjectData(gameObject.name, CustomPrefabSnapshot.GetSnapshot(gameObject, imageSize: 256)));
+                        }
+                        break;
                     case TypeClassification.Anonymous:
                         break;
                     default:
@@ -269,6 +297,14 @@ namespace KitchenECSExplorer
                 {
                     return TypeClassification.Pointer;
                 }
+                else if (typeof(GameObject).IsAssignableFrom(type))
+                {
+                    return TypeClassification.GameObject;
+                }
+                else if (typeof(Texture).IsAssignableFrom(type))
+                {
+                    return TypeClassification.Texture;
+                }
                 else if (type.IsClass)
                 {
                     return TypeClassification.Class;
@@ -276,6 +312,45 @@ namespace KitchenECSExplorer
                 else
                 {
                     return TypeClassification.Unknown;
+                }
+            }
+
+            public bool GetValueStringOverride(out string valueString)
+            {
+                valueString = null;
+                string typeReadableName = ReflectionUtils.GetReadableTypeName(Class);
+                switch (Classification)
+                {
+                    case TypeClassification.Struct:
+                    case TypeClassification.Class:
+                    case TypeClassification.Collection:
+                    case TypeClassification.GameObject:
+                        if (Value is UnityEngine.Object obj)
+                        {
+                            valueString = $"{obj.name} ({typeReadableName})";
+                        }
+                        else
+                        {
+                            valueString = typeReadableName;
+                        }
+                        return true;
+                    case TypeClassification.Enum:
+                        valueString = $"{typeReadableName}.{Value}";
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+
+            public bool DrawValueOverride()
+            {
+                switch (Classification)
+                {
+                    case TypeClassification.Texture:
+                        GUILayout.Box((Texture)Value);
+                        return true;
+                    default:
+                        return false;
                 }
             }
         }
@@ -300,19 +375,21 @@ namespace KitchenECSExplorer
 
         private ObjectData DrawObject(ObjectData data, int indentLevel = 0, int unitIndent = 20)
         {
-            // Change indent to move label start position to the right
-            string label = "";
-            label += data.FieldDatas.Count > 0 || !data.IsInit ? (data.IsExpanded ? "▼ " : "▶ ") : "    ";
-            //label += $"{data.Name} ({data.Class})";
-            label += $"{data.Name}";
-            label += data.Value == null ? " = null" : $" = {data.Value}";
 
             GUILayout.BeginHorizontal();
             GUILayout.Space(unitIndent * indentLevel);
-            if (GUILayout.Button(label, LabelLeftStyle, GUILayout.MinWidth(600)))
+            if (!data.DrawValueOverride())
             {
-                data.IsExpanded = !data.IsExpanded;
+                string label = "";
+                label += data.FieldDatas.Count > 0 || !data.IsInit ? (data.IsExpanded ? "▼ " : "▶ ") : "    ";
+                label += $"{data.Name}";
+                label += data.Value == null ? " = null" : $" = {(data.GetValueStringOverride(out string valueString) ? valueString : data.Value)}";
+                if (GUILayout.Button(label, LabelLeftStyle, GUILayout.MinWidth(600)))
+                {
+                    data.IsExpanded = !data.IsExpanded;
+                }
             }
+            GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
 
             if (data.IsExpanded)

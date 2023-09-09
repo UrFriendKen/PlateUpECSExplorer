@@ -1,9 +1,9 @@
-﻿using Mono.Cecil.Cil;
-using Mono.Cecil;
+﻿using Mono.Cecil;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace KitchenECSExplorer.Utils
 {
@@ -114,6 +114,19 @@ namespace KitchenECSExplorer.Utils
             }
 
             return types;
+        }
+
+        public static string GetReadableTypeName(Type type)
+        {
+            string typeName = type.Name;
+
+            if (type.IsGenericType)
+            {
+                typeName = Regex.Replace(typeName, @"`\d+", ""); // Remove generic arity
+                typeName += "<" + string.Join(", ", type.GetGenericArguments().Select(GetReadableTypeName)) + ">";
+            }
+
+            return typeName;
         }
     }
 }
