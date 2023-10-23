@@ -18,8 +18,17 @@ namespace KitchenECSExplorer
 
         private const float windowWidth = 775f;
 
-        private string highlightFilterText = String.Empty;
-        private readonly Color _highlightColor = Color.red;
+        List<string> _filters = new List<string>();
+        List<Color> _filterColors = new List<Color>()
+        {
+            new Color(1f, 0.65f, 0.65f),
+            new Color(0.65f, 1f, 0.65f),
+            new Color(0.65f, 0.65f, 1f),
+            new Color(1f, 0.65f, 1f),
+            new Color(0.65f, 1f, 1f)
+        };
+        readonly Color _filterFallbackColor = Color.white;
+        const int MAX_FILTER_COUNT = 5;
 
         private struct World
         {
@@ -31,11 +40,12 @@ namespace KitchenECSExplorer
             }
         }
 
-        public struct System
+        public class System
         {
             public string Name;
             private Dictionary<int, System> Subsystems;
             public bool IsExpanded;
+            public System Parent;
 
             public System()
             {
@@ -45,6 +55,7 @@ namespace KitchenECSExplorer
 
             public void AddSubsystem(System data, int index)
             {
+                data.Parent = this;
                 Subsystems[index] = data;
             }
 
@@ -74,6 +85,16 @@ namespace KitchenECSExplorer
                         return true;
                 }
                 return false;
+            }
+
+            public bool ContainsParentSystemByNameRecurse(string systemNameSubstring)
+            {
+                string lowerSubstring = systemNameSubstring.ToLowerInvariant();
+                if (Parent == null)
+                    return false;
+                if (Parent.Name.ToLowerInvariant().Contains(lowerSubstring))
+                    return true;
+                return Parent.ContainsParentSystemByNameRecurse(systemNameSubstring);
             }
 
             public void CollapseRecurse()
@@ -116,7 +137,7 @@ namespace KitchenECSExplorer
             GUILayout.BeginArea(new Rect(10f, 0f, windowWidth, 1050f));
             GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 1050f), Background, ScaleMode.StretchToFill);
 
-            highlightFilterText = GUILayout.TextArea(highlightFilterText);
+            DrawMultiFilter();
             if (!_isWorldSystemInit)
             {
                 GUILayout.Label("World Systems not initialized!", LabelMiddleCentreStyle);
@@ -124,6 +145,37 @@ namespace KitchenECSExplorer
             }
             _worldSystems = DrawSystemsHierarchy(_worldSystems, ref scrollPos);
             GUILayout.EndArea();
+        }
+
+        private void DrawMultiFilter()
+        {
+            List<int> markedForDeletion = new List<int>();
+            for (int i = 0; i < _filters.Count(); i++)
+            {
+                GUILayout.BeginHorizontal();
+                _filters[i] = GUILayout.TextArea(_filters[i]);
+                if (GUILayout.Button("X", GUILayout.Width(30f)))
+                {
+                    markedForDeletion.Add(i);
+                }
+                GUILayout.EndHorizontal();
+            }
+            for (int i = markedForDeletion.Count() - 1; i > -1; i--)
+            {
+                Main.LogInfo(i);
+                _filters.RemoveAt(markedForDeletion[i]);
+            }
+            if (_filters.Count() < MAX_FILTER_COUNT && GUILayout.Button("Add Filter"))
+            {
+                _filters.Add(string.Empty);
+            }
+        }
+
+        private Color GetFilterColor(int index)
+        {
+            if (index >= 0 && index < _filterColors.Count())
+                return _filterColors[index];
+            return _filterFallbackColor;
         }
 
         protected System DrawSystemsHierarchy(System system, ref Vector2 scrollPosition, string objName = null, float? width = null)
@@ -153,16 +205,30 @@ namespace KitchenECSExplorer
             label += subsystems.Count() > 0 ? (system.IsExpanded ? "▼ " : "▶ ") : "    ";
             label += $"{system.Name}";
 
-            //Color defaultContentColor = GUI.contentColor;
-            if (indentLevel != 0 && !highlightFilterText.IsNullOrEmpty())
+            Color defaultContentColor = GUI.contentColor;
+            if (indentLevel != 0 && !_filters.IsNullOrEmpty())
             {
-                if (!system.ContainsSystemByNameRecurse(highlightFilterText))
+                bool hasMatch = false;
+                bool hasFilter = false;
+                bool colorSet = false;
+                for (int i = 0; i < _filters.Count(); i++)
                 {
-                    //system.CollapseRecurse();
-                    return system;
+                    string highlightFilterText = _filters[i];
+                    if (highlightFilterText.IsNullOrEmpty())
+                        continue;
+                    hasFilter = true;
+                    if (!colorSet && system.Name.ToLowerInvariant().Contains(highlightFilterText.ToLowerInvariant()))
+                    {
+                        GUI.contentColor = GetFilterColor(i);
+                        colorSet = true;
+                    }
+                    if (system.ContainsSystemByNameRecurse(highlightFilterText) || system.ContainsParentSystemByNameRecurse(highlightFilterText))
+                        hasMatch = true;
+                    if (colorSet && hasMatch)
+                        break;
                 }
-                //if (system.Name.ToLowerInvariant().Contains(highlightFilterText.ToLowerInvariant()))
-                //    GUI.contentColor = _highlightColor;
+                if (hasFilter && !hasMatch)
+                    return system;
             }
             GUILayout.BeginHorizontal();
             GUILayout.Space(unitIndent * indentLevel);
@@ -171,7 +237,7 @@ namespace KitchenECSExplorer
             {
                 system.IsExpanded = !system.IsExpanded;
             }
-            //GUI.contentColor = defaultContentColor;
+            GUI.contentColor = defaultContentColor;
             GUILayout.EndHorizontal();
 
             if (system.IsExpanded)

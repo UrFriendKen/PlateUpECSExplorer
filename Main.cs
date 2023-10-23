@@ -16,7 +16,7 @@ namespace KitchenECSExplorer
         // Mod Version must follow semver notation e.g. "1.2.3"
         public const string MOD_GUID = "IcedMilo.PlateUp.PlateUpExplorer";
         public const string MOD_NAME = "PlateUp! Explorer";
-        public const string MOD_VERSION = "0.3.5";
+        public const string MOD_VERSION = "0.3.6";
         public const string MOD_AUTHOR = "IcedMilo";
         public const string MOD_GAMEVERSION = ">=1.1.4";
         // Game version this mod is designed for in semver

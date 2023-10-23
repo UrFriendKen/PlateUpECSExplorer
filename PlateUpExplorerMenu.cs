@@ -325,14 +325,19 @@ namespace KitchenECSExplorer
                     case TypeClassification.Class:
                     case TypeClassification.Collection:
                     case TypeClassification.GameObject:
-                        if (Value is UnityEngine.Object obj)
+                        valueString = null;
+                        try
                         {
-                            valueString = $"{obj.name} ({typeReadableName})";
+                            if (Value is UnityEngine.Object obj)
+                            {
+                                valueString = $"{obj.name} ({typeReadableName})";
+                            }
                         }
-                        else
-                        {
+                        catch (NullReferenceException) { }
+
+                        if (valueString == null)
                             valueString = typeReadableName;
-                        }
+                        
                         return true;
                     case TypeClassification.Enum:
                         valueString = $"{typeReadableName}.{Value}";
