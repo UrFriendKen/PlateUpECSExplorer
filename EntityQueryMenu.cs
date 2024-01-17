@@ -126,8 +126,8 @@ namespace KitchenECSExplorer
             GUILayout.EndHorizontal();
             GUILayout.EndArea();
 
-            GUILayout.BeginArea(new Rect(10f, 370f, windowWidth, 110f));
-            GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 110f), Background, ScaleMode.StretchToFill);
+            GUILayout.BeginArea(new Rect(10f, 370f, windowWidth, 130f));
+            GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 130f), Background, ScaleMode.StretchToFill);
             GUILayout.Label($"Favourites", LabelCentreStyle);
             if (DrawFavouriteQueriesList(ref favouriteQueries, ref favouriteQueriesScrollPosition, windowWidth, windowWidth - 15f, out int selectedFavouriteQueryIndex))
             {
@@ -146,9 +146,6 @@ namespace KitchenECSExplorer
                     }
                 }
             }
-            GUILayout.EndArea();
-
-            GUILayout.BeginArea(new Rect(10f, 490f, windowWidth, 30f));
             GUILayout.BeginHorizontal();
             newFavouriteName = GUILayout.TextField(newFavouriteName, GUILayout.Width(windowWidth * 0.7f));
             if (GUILayout.Button("Add Favourite") && !string.IsNullOrEmpty(newFavouriteName.Trim()))
@@ -158,6 +155,9 @@ namespace KitchenECSExplorer
                 newFavouriteName = string.Empty;
             }
             GUILayout.EndHorizontal();
+            GUILayout.EndArea();
+
+            GUILayout.BeginArea(new Rect(10f, 510f, windowWidth, 30f));
             if (GUILayout.Button("Get Entity Query"))
             {
                 ECSExplorerController.PerformQuery(
@@ -171,7 +171,7 @@ namespace KitchenECSExplorer
             #region Query Results
             List<EntityData> results = ECSExplorerController.GetQueryResult();
 
-            GUILayout.BeginArea(new Rect(10f, 530f, windowWidth, 150f));
+            GUILayout.BeginArea(new Rect(10f, 550f, windowWidth, 140f));
             GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 150f), Background, ScaleMode.StretchToFill);
             if (results.Count == 0)
             {
@@ -215,7 +215,7 @@ namespace KitchenECSExplorer
 
             if (watchingEntities.Count > 0)
             {
-                GUILayout.BeginArea(new Rect(10f, 690f, windowWidth, 370f));
+                GUILayout.BeginArea(new Rect(10f, 700f, windowWidth, 360f));
                 GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 490f), Background, ScaleMode.StretchToFill);
                 watchingEntitiesScrollPosition = GUILayout.BeginScrollView(watchingEntitiesScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar);
 
