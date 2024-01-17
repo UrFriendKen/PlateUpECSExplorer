@@ -1,33 +1,43 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Unity.Entities;
 using UnityEngine;
+using KitchenECSExplorer.Utils;
+using KitchenECSExplorer.Persistence;
+using System.IO;
 
 namespace KitchenECSExplorer
 {
     public class EntityQueryMenu : PlateUpExplorerMenu
     {
         private string componentFilterText = "";
-        private static Vector2 filterScrollPosition = new Vector2(0, 0);
+        private Vector2 filterScrollPosition = new Vector2(0, 0);
 
-        public static Dictionary<string, ComponentType> Components = new Dictionary<string, ComponentType>();
-        public static List<string> ComponentNames = new List<string>();
+        public Dictionary<string, ComponentType> Components = new Dictionary<string, ComponentType>();
+        public List<(string name, string key)> ComponentsList = new List<(string name, string key)>();
+        public Dictionary<string, string> ComponentNames = new Dictionary<string, string>();
 
-        private static List<string> QueryAll = new List<string>();
-        private static Vector2 queryAllScrollPosition = new Vector2(0, 0);
-        private static List<string> QueryAny = new List<string>();
-        private static Vector2 queryAnyScrollPosition = new Vector2(0, 0);
-        private static List<string> QueryNone = new List<string>();
-        private static Vector2 queryNoneScrollPosition = new Vector2(0, 0);
+        private List<string> QueryAll = new List<string>();
+        private Vector2 queryAllScrollPosition = new Vector2(0, 0);
+        private List<string> QueryAny = new List<string>();
+        private Vector2 queryAnyScrollPosition = new Vector2(0, 0);
+        private List<string> QueryNone = new List<string>();
+        private Vector2 queryNoneScrollPosition = new Vector2(0, 0);
 
-        private static Vector2 resultsScrollPosition = new Vector2(0, 0);
+        private Vector2 resultsScrollPosition = new Vector2(0, 0);
 
-        private static List<EntityData> watchingEntities = new List<EntityData>();
-        private static List<bool> watchingEntitiesDisplayUseHierarchy = new List<bool>();
-        private static List<ObjectData> watchingEntitiesComponentObjectData = new List<ObjectData>();
-        private static Vector2 watchingEntitiesScrollPosition = new Vector2(0, 0);
-        private static List<Vector2> watchingEntitiesComponentsScrollPosition = new List<Vector2>();
-        private static List<Vector2> watchingEntitiesComponentInfoScrollPosition = new List<Vector2>();
+        private List<EntityData> watchingEntities = new List<EntityData>();
+        private List<bool> watchingEntitiesDisplayUseHierarchy = new List<bool>();
+        private List<ObjectData> watchingEntitiesComponentObjectData = new List<ObjectData>();
+        private Vector2 watchingEntitiesScrollPosition = new Vector2(0, 0);
+        private List<Vector2> watchingEntitiesComponentsScrollPosition = new List<Vector2>();
+        private List<Vector2> watchingEntitiesComponentInfoScrollPosition = new List<Vector2>();
+
+        private const string FAVOURITE_QUERIES_FILENAME = "entityQueryFavourites.puexplorersave";
+        private List<PersistentEntityQuery> favouriteQueries = new List<PersistentEntityQuery>();
+        private Vector2 favouriteQueriesScrollPosition = new Vector2(0, 0);
+        private string newFavouriteName = string.Empty;
 
         public EntityQueryMenu()
         {
@@ -44,14 +54,18 @@ namespace KitchenECSExplorer
                 componentType.Category == TypeManager.TypeCategory.EntityData
                 ))
             {
-                if (typeInfo.Type != null && !ComponentNames.Contains(typeInfo.Type.Name))
+                if (typeInfo.Type != null && !Components.ContainsKey(typeInfo.Type.AssemblyQualifiedName))
                 {
                     i++;
-                    ComponentNames.Add(typeInfo.Type.Name);
-                    Components.Add(typeInfo.Type.Name, typeInfo.Type);
+                    Type type = typeInfo.Type;
+                    string displayName = ReflectionUtils.GetReadableTypeName(type);
+                    ComponentsList.Add((displayName, type.AssemblyQualifiedName));
+                    ComponentNames[typeInfo.Type.AssemblyQualifiedName] = displayName;
+                    Components.Add(typeInfo.Type.AssemblyQualifiedName, typeInfo.Type);
                 }
             }
             Main.LogInfo($"Number of components = {i}");
+            LoadFavouriteQueries();
         }
 
         protected override void OnSetup() // This is called evey frame the menu is open, This is also where you draw your UnityGUI
@@ -66,31 +80,31 @@ namespace KitchenECSExplorer
 
             GUILayout.Label("Filter");
 
-            componentFilterText = GUILayout.TextField(componentFilterText);
+            List<(string name, string key)> matchingComponents = string.IsNullOrEmpty(componentFilterText) ?
+                ComponentsList : GetFuzzyMatches(ComponentsList, componentFilterText, x => x.name);
+
+            componentFilterText = DoTabCompleteTextField("componentFilter", componentFilterText, matchingComponents.Select(item => item.name));
 
             filterScrollPosition = GUILayout.BeginScrollView(filterScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar);
-
-            for (int i = 0; i < ComponentNames.Count; i++)
+            foreach (var component in matchingComponents)
             {
-                if (string.IsNullOrEmpty(componentFilterText) || ComponentNames[i].ToLower().Contains(componentFilterText.ToLower()))
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(component.name, GUILayout.Width(componentListWidth / 2));
+                if (GUILayout.Button("All", GUILayout.Width(componentListWidth / 6)))
                 {
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label(ComponentNames[i], GUILayout.Width(componentListWidth / 2));
-                    if (GUILayout.Button("All", GUILayout.Width(componentListWidth / 6)))
-                    {
-                        AddToQuery(ComponentNames[i], ComponentPresence.All);
-                    }
-                    if (GUILayout.Button("Any", GUILayout.Width(componentListWidth / 6)))
-                    {
-                        AddToQuery(ComponentNames[i], ComponentPresence.Any);
-                    }
-                    if (GUILayout.Button("None", GUILayout.Width(componentListWidth / 6)))
-                    {
-                        AddToQuery(ComponentNames[i], ComponentPresence.None);
-                    }
-                    GUILayout.EndHorizontal();
+                    AddToQuery(component.key, ComponentPresence.All);
                 }
+                if (GUILayout.Button("Any", GUILayout.Width(componentListWidth / 6)))
+                {
+                    AddToQuery(component.key, ComponentPresence.Any);
+                }
+                if (GUILayout.Button("None", GUILayout.Width(componentListWidth / 6)))
+                {
+                    AddToQuery(component.key, ComponentPresence.None);
+                }
+                GUILayout.EndHorizontal();
             }
+
             GUILayout.EndScrollView();
             GUILayout.EndArea();
             #endregion
@@ -112,7 +126,38 @@ namespace KitchenECSExplorer
             GUILayout.EndHorizontal();
             GUILayout.EndArea();
 
-            GUILayout.BeginArea(new Rect(10f, 370f, windowWidth, 30f));
+            GUILayout.BeginArea(new Rect(10f, 370f, windowWidth, 110f));
+            GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 110f), Background, ScaleMode.StretchToFill);
+            GUILayout.Label($"Favourites", LabelCentreStyle);
+            if (DrawFavouriteQueriesList(ref favouriteQueries, ref favouriteQueriesScrollPosition, windowWidth, windowWidth - 15f, out int selectedFavouriteQueryIndex))
+            {
+                PersistentEntityQuery selectedFavouriteQuery = favouriteQueries[selectedFavouriteQueryIndex];
+                LoadQueryByPresence(selectedFavouriteQuery.All, ComponentPresence.All);
+                LoadQueryByPresence(selectedFavouriteQuery.Any, ComponentPresence.Any);
+                LoadQueryByPresence(selectedFavouriteQuery.None, ComponentPresence.None);
+                void LoadQueryByPresence(PersistentList<PersistentString> list, ComponentPresence presence)
+                {
+                    ClearQuery(presence);
+                    foreach (PersistentString item in list.Items)
+                    {
+                        if (!Components.ContainsKey(item))
+                            continue;
+                        AddToQuery(item, presence);
+                    }
+                }
+            }
+            GUILayout.EndArea();
+
+            GUILayout.BeginArea(new Rect(10f, 490f, windowWidth, 30f));
+            GUILayout.BeginHorizontal();
+            newFavouriteName = GUILayout.TextField(newFavouriteName, GUILayout.Width(windowWidth * 0.7f));
+            if (GUILayout.Button("Add Favourite") && !string.IsNullOrEmpty(newFavouriteName.Trim()))
+            {
+                favouriteQueries.Add(new PersistentEntityQuery(newFavouriteName.Trim(), QueryAll, QueryAny, QueryNone));
+                SaveFavouriteQueries();
+                newFavouriteName = string.Empty;
+            }
+            GUILayout.EndHorizontal();
             if (GUILayout.Button("Get Entity Query"))
             {
                 ECSExplorerController.PerformQuery(
@@ -120,14 +165,13 @@ namespace KitchenECSExplorer
                     ParseQueryArray(QueryAny),
                     ParseQueryArray(QueryNone));
             }
-
             GUILayout.EndArea();
             #endregion
             
             #region Query Results
             List<EntityData> results = ECSExplorerController.GetQueryResult();
 
-            GUILayout.BeginArea(new Rect(10f, 410f, windowWidth, 150f));
+            GUILayout.BeginArea(new Rect(10f, 530f, windowWidth, 150f));
             GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 150f), Background, ScaleMode.StretchToFill);
             if (results.Count == 0)
             {
@@ -171,7 +215,7 @@ namespace KitchenECSExplorer
 
             if (watchingEntities.Count > 0)
             {
-                GUILayout.BeginArea(new Rect(10f, 570f, windowWidth, 490f));
+                GUILayout.BeginArea(new Rect(10f, 690f, windowWidth, 370f));
                 GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 490f), Background, ScaleMode.StretchToFill);
                 watchingEntitiesScrollPosition = GUILayout.BeginScrollView(watchingEntitiesScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar);
 
@@ -242,21 +286,52 @@ namespace KitchenECSExplorer
             None
         }
 
-        private void AddToQuery(string componentName, ComponentPresence componentPresence)
+        private void SaveFavouriteQueries()
+        {
+            new PersistentList<PersistentEntityQuery>(favouriteQueries).Save(FAVOURITE_QUERIES_FILENAME);
+        }
+
+        private void LoadFavouriteQueries()
+        {
+            PersistentList<PersistentEntityQuery> loaded = new PersistentList<PersistentEntityQuery>();
+            if (!loaded.Load(FAVOURITE_QUERIES_FILENAME))
+                return;
+            favouriteQueries = loaded.Items;
+        }
+
+        private void AddToQuery(string componentKey, ComponentPresence componentPresence)
         {
             switch (componentPresence)
             {
                 case ComponentPresence.All:
-                    if (!QueryAll.Contains(componentName))
-                        QueryAll.Add(componentName);
+                    if (!QueryAll.Contains(componentKey))
+                        QueryAll.Add(componentKey);
                     break;
                 case ComponentPresence.Any:
-                    if (!QueryAny.Contains(componentName))
-                        QueryAny.Add(componentName);
+                    if (!QueryAny.Contains(componentKey))
+                        QueryAny.Add(componentKey);
                     break;
                 case ComponentPresence.None:
-                    if (!QueryNone.Contains(componentName))
-                        QueryNone.Add(componentName);
+                    if (!QueryNone.Contains(componentKey))
+                        QueryNone.Add(componentKey);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        private void ClearQuery(ComponentPresence componentPresence)
+        {
+            switch (componentPresence)
+            {
+                case ComponentPresence.All:
+                    QueryAll.Clear();
+                    break;
+                case ComponentPresence.Any:
+                    QueryAny.Clear();
+                    break;
+                case ComponentPresence.None:
+                    QueryNone.Clear();
                     break;
                 default:
                     break;
@@ -269,7 +344,7 @@ namespace KitchenECSExplorer
             for (int i = 0; i < queryList.Count; ++i)
             {
                 GUILayout.BeginHorizontal();
-                GUILayout.Label(queryList[i], GUILayout.Width(itemWidth * 0.7f));
+                GUILayout.Label(ComponentNames[queryList[i]], GUILayout.Width(itemWidth * 0.7f));
                 if (GUILayout.Button("Remove", GUILayout.Width(itemWidth * 0.3f)))
                 {
                     queryList.RemoveAt(i);
@@ -277,6 +352,31 @@ namespace KitchenECSExplorer
                 GUILayout.EndHorizontal();
             }
             GUILayout.EndScrollView();
+        }
+
+        private bool DrawFavouriteQueriesList(ref List<PersistentEntityQuery> favouriteQueries, ref Vector2 scrollPosition, float scrollWindowWidth, float itemWidth, out int selectedIndex)
+        {
+            selectedIndex = -1;
+            bool hasSelection = false;
+            scrollPosition = GUILayout.BeginScrollView(scrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar, GUILayout.Width(scrollWindowWidth));
+            for (int i = 0; i < favouriteQueries.Count; ++i)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(favouriteQueries[i].Name, GUILayout.Width(itemWidth * 0.6f));
+                if (GUILayout.Button("Load", GUILayout.Width(itemWidth * 0.2f)))
+                {
+                    selectedIndex = i;
+                    hasSelection = true;
+                }
+                if (GUILayout.Button("Delete", GUILayout.Width(itemWidth * 0.2f)))
+                {
+                    favouriteQueries.RemoveAt(i);
+                    SaveFavouriteQueries();
+                }
+                GUILayout.EndHorizontal();
+            }
+            GUILayout.EndScrollView();
+            return hasSelection;
         }
 
         private bool DrawEntityData(ref EntityData entityData, float windowWidth, ref Vector2 componentsScrollPosition, ref Vector2 componentsInfoScrollPosition, ref bool useHierarchy, ref ObjectData objectData)
@@ -315,10 +415,10 @@ namespace KitchenECSExplorer
                 componentsScrollPosition = GUILayout.BeginScrollView(componentsScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar, GUILayout.Width(windowWidth * 0.4f));
                 for (int i = 0; i < components.Count; i++)
                 {
-                    string componentName = components[i].GetManagedType().Name;
-                    if (Components.ContainsKey(componentName))
+                    string componentKey = components[i].GetManagedType().AssemblyQualifiedName;
+                    if (Components.ContainsKey(componentKey))
                     {
-                        if (GUILayout.Button(componentName))
+                        if (GUILayout.Button(ComponentNames[componentKey]))
                         {
                             entityData.SelectedComponentType = components[i];
                             entityData.SelectedBufferIndex = 0;
@@ -327,7 +427,7 @@ namespace KitchenECSExplorer
                     }
                     else
                     {
-                        GUILayout.Label(componentName, LabelCentreStyle);
+                        GUILayout.Label(components[i].GetManagedType().Name, LabelCentreStyle);
                     }
                 }
                 GUILayout.EndScrollView();
@@ -369,7 +469,7 @@ namespace KitchenECSExplorer
                             Main.LogError($"Component Type = {data.Type}");
                             Main.LogError($"FieldCount = {data.FieldCount}");
                         }
-                        noFieldsString += $"\nPlease close and perform another entity query. If the error persists, please contact the mod developer ({Main.MOD_AUTHOR}) and provide your Player.log file.";
+                        noFieldsString += $"\nPlease close and perform another entity query. If the error persists, please contact the mod developer (IcedMilo) and provide your Player.log file.";
                         GUILayout.Label(noFieldsString, LabelMiddleCentreStyle);
                     }
                     else if (data.FieldCount == 0)
@@ -451,7 +551,7 @@ namespace KitchenECSExplorer
 
         private void DrawHierarchy(ref ObjectData objectData, EntityData entityData, ComponentData data, ref Vector2 componentsInfoScrollPosition)
         {
-            GUILayout.Label("------------------ Note: Contents of hierarchy does not auto-update ------------------", LabelCentreStyle);
+            GUILayout.Label("------------------ Note: Content of hierarchy does not auto-update ------------------", LabelCentreStyle);
             if (objectData == null)
             {
                 objectData = new ObjectData($"{entityData.SelectedComponentType.GetManagedType()} ({data.Classification})", data.Instance);

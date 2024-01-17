@@ -1,4 +1,5 @@
 ﻿using KitchenData;
+using KitchenECSExplorer.Utils;
 using KitchenLib.Customs;
 using KitchenLib.Utils;
 using System;
@@ -220,12 +221,12 @@ namespace KitchenECSExplorer
             }
         }
 
-        private string componentFilterText = "";
-        private static Vector2 vanillafilterScrollPosition = new Vector2(0, 0);
-        private static Vector2 customsfilterScrollPosition = new Vector2(0, 0);
+        private string gdoTypeFilterText = "";
+        private Vector2 vanillafilterScrollPosition = new Vector2(0, 0);
+        private Vector2 customsfilterScrollPosition = new Vector2(0, 0);
 
-        private static List<Type> VanillaGDOs = new List<Type>();
-        private static List<Type> CustomGDOs = new List<Type>();
+        private List<Type> VanillaGDOs = new List<Type>();
+        private List<Type> CustomGDOs = new List<Type>();
 
         private ObjectData selectedGDOInstance = null;
         private Type SelectedGDOType = null;
@@ -233,8 +234,8 @@ namespace KitchenECSExplorer
         private MethodInfo GenericVanillaGetGDO = null;
         private string instanceFilterText = "";
 
-        private static Vector2 gDOInstanceListScrollPosition = new Vector2(0, 0);
-        private static Vector2 hierarchyScrollPosition = new Vector2(0, 0);
+        private Vector2 gDOInstanceListScrollPosition = new Vector2(0, 0);
+        private Vector2 hierarchyScrollPosition = new Vector2(0, 0);
 
         private const float windowWidth = 775f;
 
@@ -272,44 +273,43 @@ namespace KitchenECSExplorer
 
             GUILayout.Label("Filter");
 
-            componentFilterText = GUILayout.TextField(componentFilterText);
+            IEnumerable<Type> matchingVanillaGDOTypes = string.IsNullOrEmpty(gdoTypeFilterText) ?
+                VanillaGDOs : GetFuzzyMatches(VanillaGDOs, gdoTypeFilterText, type => type.FullName);
+            IEnumerable<Type> matchingCustomGDOTypes = string.IsNullOrEmpty(gdoTypeFilterText) ?
+                CustomGDOs : GetFuzzyMatches(CustomGDOs, gdoTypeFilterText, type => type.FullName);
+            gdoTypeFilterText = DoTabCompleteTextField("gdoTypeFilter", gdoTypeFilterText, matchingVanillaGDOTypes.Concat(matchingCustomGDOTypes).Select(type => type.FullName));
+
             GUILayout.BeginHorizontal();
 
             GUILayout.BeginVertical(GUILayout.Width(windowWidth * 0.4f));
             GUILayout.Label("Vanilla GDO Types", LabelCentreStyle);
             vanillafilterScrollPosition = GUILayout.BeginScrollView(vanillafilterScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar);
 
-            for (int i = 0; i < VanillaGDOs.Count; i++)
+            foreach (Type gdoType in matchingVanillaGDOTypes)
             {
-                string typeString = VanillaGDOs[i].FullName;
-                if (string.IsNullOrEmpty(componentFilterText) || typeString.ToLower().Contains(componentFilterText.ToLower()))
+                string typeString = gdoType.FullName;
+                if (GUILayout.Button(typeString, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.4f - 15f)))
                 {
-                    if (GUILayout.Button(typeString, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.4f - 15f)))
-                    {
-                        Clear();
-                        IsSelectedVanilla = true;
-                        SelectedGDOType = VanillaGDOs[i];
-                    }
+                    Clear();
+                    IsSelectedVanilla = true;
+                    SelectedGDOType = gdoType;
                 }
             }
             GUILayout.EndScrollView();
             GUILayout.EndVertical();
 
             GUILayout.BeginVertical(GUILayout.Width(windowWidth * 0.6f));
-            GUILayout.Label("Kitchen Lib Registered CustomGDO Types", LabelCentreStyle);
+            GUILayout.Label("KitchenLib Registered CustomGDO Types", LabelCentreStyle);
             customsfilterScrollPosition = GUILayout.BeginScrollView(customsfilterScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar);
 
-            for (int i = 0; i < CustomGDOs.Count; i++)
+            foreach (Type gdoType in matchingCustomGDOTypes)
             {
-                string typeString = CustomGDOs[i].FullName;
-                if (string.IsNullOrEmpty(componentFilterText) || typeString.ToLower().Contains(componentFilterText.ToLower()))
+                string typeString = gdoType.FullName;
+                if (GUILayout.Button(typeString, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.6f - 15f)))
                 {
-                    if (GUILayout.Button(typeString, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.6f - 15f)))
-                    {
-                        Clear();
-                        IsSelectedVanilla = false;
-                        SelectedGDOType = CustomGDOs[i];
-                    }
+                    Clear();
+                    IsSelectedVanilla = false;
+                    SelectedGDOType = gdoType;
                 }
             }
             GUILayout.EndScrollView();
@@ -385,27 +385,46 @@ namespace KitchenECSExplorer
             GUILayout.BeginHorizontal();
             GUILayout.BeginVertical();
             GUILayout.Label($"Derived Types ({SelectedGDOType.Name})", LabelCentreStyle, GUILayout.Width(windowWidth * 0.3f));
-            instanceFilterText = GUILayout.TextField(instanceFilterText, GUILayout.Width(windowWidth * 0.3f));
+
+            bool usingIDMatch;
+            IEnumerable<object> matchingInstances;
+            if (instanceFilterText.IsNullOrEmpty() || instanceFilterText.IsNumber())
+            {
+                usingIDMatch = true;
+                matchingInstances = instances;
+            }
+            else
+            {
+                usingIDMatch = false;
+                matchingInstances = GetFuzzyMatches(instances, instanceFilterText, obj =>
+                {
+                    if (obj == null)
+                        return "";
+                    if (obj is GameDataObject gdo)
+                        return gdo.name;
+                    if (obj is CustomGameDataObject customGdo)
+                        return customGdo.GameDataObject?.name ?? "";
+                    return obj.ToString();
+                });
+            }
+
+            instanceFilterText = DoTabCompleteTextField("instanceFilter", instanceFilterText, matchingInstances.Select(item => item.ToString()), GUILayout.Width(windowWidth * 0.3f));
             gDOInstanceListScrollPosition = GUILayout.BeginScrollView(gDOInstanceListScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar, GUILayout.Width(windowWidth * 0.3f));
 
-            foreach (var instance in instances)
+            foreach (var instance in matchingInstances)
             {
                 string typeName = $"{instance}";
 
-                bool show = string.IsNullOrEmpty(instanceFilterText);
-                if (!show)
-                    show = typeName.ToLower().Contains(instanceFilterText.ToLower());
-                if (!show)
-                    show = (instance is GameDataObject gdo) && gdo.ID.ToString().Contains(instanceFilterText);
-                if (!show)
-                    show = (instance is CustomGameDataObject customGdo) && customGdo.ID.ToString().Contains(instanceFilterText);
+                bool show = !usingIDMatch ||
+                    ((instance is GameDataObject gdo) && gdo.ID.ToString().Contains(instanceFilterText)) ||
+                    ((instance is CustomGameDataObject customGdo) && customGdo.ID.ToString().Contains(instanceFilterText));
 
-                if (show)
+                if (!show)
+                    continue;
+
+                if (GUILayout.Button(typeName, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.3f - 15f)))
                 {
-                    if (GUILayout.Button(typeName, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.3f - 15f)))
-                    {
-                        selectedGDOInstance = new ObjectData(typeName, instance);
-                    }
+                    selectedGDOInstance = new ObjectData(typeName, instance);
                 }
             }
             GUILayout.EndScrollView();

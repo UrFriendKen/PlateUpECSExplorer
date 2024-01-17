@@ -1,10 +1,13 @@
-﻿using KitchenLib.DevUI;
+﻿using Kitchen.Layouts.Modules;
+using KitchenECSExplorer.Utils;
+using KitchenLib.DevUI;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
-using KitchenECSExplorer.Utils;
 using UnityEngine;
+using XNode;
 
 namespace KitchenECSExplorer
 {
@@ -75,6 +78,66 @@ namespace KitchenECSExplorer
 
         }
 
+        protected string DoTabCompleteTextField(string controlName, string text, IEnumerable<string> orderedMatches, params GUILayoutOption[] options)
+        {
+            Event ev = Event.current;
+            if (GUI.GetNameOfFocusedControl() == controlName &&
+                !string.IsNullOrEmpty(text) &&
+                ev.type == EventType.KeyDown &&
+                (ev.keyCode == KeyCode.Tab || ev.character == '\t'))
+            {
+                ev.Use();
+                text = orderedMatches?.FirstOrDefault() ?? text;
+                
+                GUI.FocusControl(controlName);
+            }
+            GUI.SetNextControlName(controlName);
+            text = GUILayout.TextField(text, options);
+            return text;
+        }
+
+        protected List<T> GetFuzzyMatches<T>(IEnumerable<T> items, string matchString, Func<T, string> selector, int minCharMatch = 3, int maxExtraChars = 3, int maxDistance = 5, bool ignoreCase = true)
+        {
+            maxDistance = Mathf.Clamp(maxDistance, 0, 999);
+            
+            int matchStringLength = matchString.Length;
+
+            List<(T value, int length, int distance)> matches = new List<(T, int, int)>();
+            foreach (T item in items)
+            {
+                string candidate = selector(item);
+
+                bool containsSubstring = candidate.Contains(matchString);
+                if ((maxExtraChars >= 0 && matchString.Length - candidate.Length > maxExtraChars) ||
+                    (minCharMatch < Mathf.Min(candidate.Length, matchStringLength) && candidate.Intersect(matchString).Count() < minCharMatch) ||
+                    (!IsFuzzyMatch(selector(item), matchString, out int distance, true, maxDistance, ignoreCase) && !containsSubstring))
+                    continue;
+
+                bool startsWithSubstring = candidate.StartsWith(matchString);
+                distance *= 1 * (containsSubstring ? 1 : 1000) * (startsWithSubstring ? 1 : 1000);
+                matches.Add((item, candidate.Length, distance));
+            }
+            return matches
+                .OrderBy(item => item.distance)
+                .ThenBy(item => item.length)
+                .Select(item => item.value)
+                .ToList();
+        }
+
+        protected bool IsFuzzyMatch(string s1, string s2, out int editDistance, bool ignoreLength = false, int maxDistance = 10, bool ignoreCase = true)
+        {
+            if (ignoreCase)
+            {
+                s1 = s1.ToLowerInvariant();
+                s2 = s2.ToLowerInvariant();
+            }
+
+            maxDistance = Mathf.Clamp(maxDistance, 0, 999);
+            editDistance = StringUtils.LevenshteinDistance(s1, s2);
+            if (ignoreLength)
+                editDistance -= Mathf.Abs(s1.Length - s2.Length);
+            return editDistance <= maxDistance;
+        }
 
         protected class ObjectData
         {
@@ -92,7 +155,9 @@ namespace KitchenECSExplorer
                 Anonymous,
                 Tuple,
                 Texture,
-                GameObject
+                GameObject,
+                NodeGraph,
+                Node
             }
 
             public readonly string Name;
@@ -137,6 +202,8 @@ namespace KitchenECSExplorer
                         case TypeClassification.Enum:
                         case TypeClassification.Tuple:
                         case TypeClassification.GameObject:
+                        case TypeClassification.NodeGraph:
+                        case TypeClassification.Node:
                             IsInit = false;
                             break;
                         case TypeClassification.Native:
@@ -183,19 +250,26 @@ namespace KitchenECSExplorer
                         break;
                     case TypeClassification.Collection:
                         IEnumerable collection = Value as IEnumerable;
-                        if (collection != null)
+                        int count = 0;
+                        foreach (object element in collection)
                         {
-                            int count = 0;
-                            foreach (object element in collection)
+                            count++;
+                        }
+                        FieldDatas.Add(new ObjectData($"Number of Elements", count));
+
+                        int index = 0;
+                        foreach (object element in collection)
+                        {
+                            Type elementType = element.GetType();
+                            if (elementType.IsGenericType && elementType.GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
                             {
-                                count++;
+                                object key = elementType.GetProperty("Key").GetValue(element);
+                                object value = elementType.GetProperty("Value").GetValue(element);
+                                FieldDatas.Add(new ObjectData($"[{key}]", value));
                             }
-                            FieldDatas.Add(new ObjectData($"Number of Elements", count));
-                            int index = 0;
-                            foreach (object element in collection)
-                            {
-                                FieldDatas.Add(new ObjectData($"[{index++}]", element));
-                            }
+                            else
+                                FieldDatas.Add(new ObjectData($"[{index}]", element));
+                            index++;
                         }
                         break;
                     case TypeClassification.Enum:
@@ -233,19 +307,63 @@ namespace KitchenECSExplorer
                         }
                         break;
                     case TypeClassification.GameObject:
-                        if (Value != null)
+                        GameObject gameObject = (GameObject)Value;
+                        Component[] components = gameObject.GetComponents<Component>();
+                        FieldDatas.Add(new ObjectData("Components", components));
+                        List<GameObject> children = new List<GameObject>();
+                        for (int i = 0; i < gameObject.transform.childCount; i++)
                         {
-                            GameObject gameObject = (GameObject)Value;
-                            Component[] components = gameObject.GetComponents<Component>();
-                            FieldDatas.Add(new ObjectData("Components", components));
-                            List<GameObject> children = new List<GameObject>();
-                            for (int i = 0; i < gameObject.transform.childCount; i++)
-                            {
-                                children.Add(gameObject.transform.GetChild(i).gameObject);
-                            }
-                            FieldDatas.Add(new ObjectData("Children", children.ToArray()));
-                            FieldDatas.Add(new ObjectData(gameObject.name, CustomPrefabSnapshot.GetSnapshot(gameObject, imageSize: 256)));
+                            children.Add(gameObject.transform.GetChild(i).gameObject);
                         }
+                        FieldDatas.Add(new ObjectData("Children", children.ToArray()));
+                        FieldDatas.Add(new ObjectData(gameObject.name, CustomPrefabSnapshot.GetSnapshot(gameObject, imageSize: 256)));
+                        break;
+                    case TypeClassification.NodeGraph:
+                        NodeGraph graph = (NodeGraph)Value;
+                        //FieldDatas.Add(new ObjectData("Number of nodes", graph.nodes.Count));
+                        FieldDatas.Add(new ObjectData("Nodes", graph.nodes));
+                        break;
+                    case TypeClassification.Node:
+                        Node node = (Node)Value;
+                        FieldInfo[] nodeFields = Class.GetFields(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+
+                        HashSet<string> blacklistedFieldNamesNode = new HashSet<string>()
+                        {
+                            "graph",
+                            "position"
+                        };
+
+                        if (node is LayoutModule)
+                        {
+                            blacklistedFieldNamesNode.UnionWith(new HashSet<string>()
+                            {
+                                "Texture",
+                                "Input",
+                                "Output",
+                                "AppendFrom",
+                                "Result"
+                            });
+                        }
+
+                        for (int i = 0; i < nodeFields.Length; i++)
+                        {
+                            FieldInfo field = nodeFields[i];
+                            if (blacklistedFieldNamesNode.Contains(field.Name))
+                                continue;
+                            FieldDatas.Add(new ObjectData(field.Name, field.GetValue(Value)));
+                        }
+
+                        Dictionary<string, List<Node>> connectedNodesDict = new Dictionary<string, List<Node>>();
+                        foreach (KeyValuePair<NodePort, List<NodePort>> kvp in GraphUtils.GetConnections(node))
+                        {
+                            NodePort port = kvp.Key;
+                            if (port.ConnectionCount <= 0)
+                                continue;
+                            List<Node> connectedNodes = kvp.Value.Select(nodePort => nodePort.node).ToList();
+                            string portName = $"{port.fieldName}";
+                            connectedNodesDict.Add(portName, connectedNodes);
+                        }
+                        FieldDatas.Add(new ObjectData("Connections", connectedNodesDict));
                         break;
                     case TypeClassification.Anonymous:
                         break;
@@ -296,6 +414,14 @@ namespace KitchenECSExplorer
                 else if (type.IsPointer)
                 {
                     return TypeClassification.Pointer;
+                }
+                else if (typeof(NodeGraph).IsAssignableFrom(type))
+                {
+                    return TypeClassification.NodeGraph;
+                }
+                else if (typeof(Node).IsAssignableFrom(type))
+                {
+                    return TypeClassification.Node;
                 }
                 else if (typeof(GameObject).IsAssignableFrom(type))
                 {

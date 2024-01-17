@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 
 namespace KitchenECSExplorer.Utils
 {
-    public static class ReflectionUtils
+    internal static class ReflectionUtils
     {
         public static List<Type> GetReferencedTypes<T>()
         {
@@ -118,6 +118,11 @@ namespace KitchenECSExplorer.Utils
 
         public static string GetReadableTypeName(Type type)
         {
+            return GetReadableTypeName(type, true);
+        }
+
+        public static string GetReadableTypeName(Type type, bool useFullname = true)
+        {
             string typeName = type.Name;
 
             if (type.IsGenericType)
@@ -125,7 +130,12 @@ namespace KitchenECSExplorer.Utils
                 typeName = Regex.Replace(typeName, @"`\d+", ""); // Remove generic arity
                 typeName += "<" + string.Join(", ", type.GetGenericArguments().Select(GetReadableTypeName)) + ">";
             }
+            typeName = typeName.Replace('+', '.');
 
+            if (useFullname && type.DeclaringType != null)
+            {
+                typeName = $"{GetReadableTypeName(type.DeclaringType)}.{typeName}";
+            }
             return typeName;
         }
     }
