@@ -260,8 +260,8 @@ namespace KitchenECSExplorer
                         int index = 0;
                         foreach (object element in collection)
                         {
-                            Type elementType = element.GetType();
-                            if (elementType.IsGenericType && elementType.GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
+                            Type elementType = element?.GetType();
+                            if (elementType != null && elementType.IsGenericType && elementType.GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
                             {
                                 object key = elementType.GetProperty("Key").GetValue(element);
                                 object value = elementType.GetProperty("Value").GetValue(element);
