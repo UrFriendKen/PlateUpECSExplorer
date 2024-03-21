@@ -9,6 +9,11 @@ namespace KitchenECSExplorer.Utils
 {
     internal static class ReflectionUtils
     {
+        public static bool IsStatic(Type type)
+        {
+            return type.IsClass && type.IsAbstract && type.IsSealed;
+        }
+
         public static List<Type> GetReferencedTypes<T>()
         {
             var assembly = AssemblyDefinition.ReadAssembly(typeof(T).Assembly.Location);
@@ -125,10 +130,11 @@ namespace KitchenECSExplorer.Utils
         {
             string typeName = type.Name;
 
+            Main.LogInfo($"{typeName} in {type.DeclaringType}");
             if (type.IsGenericType)
             {
                 typeName = Regex.Replace(typeName, @"`\d+", ""); // Remove generic arity
-                typeName += "<" + string.Join(", ", type.GetGenericArguments().Select(GetReadableTypeName)) + ">";
+                typeName += "<" + string.Join(", ", type.GetGenericArguments().Select(t => GetReadableTypeName(t, false))) + ">";
             }
             typeName = typeName.Replace('+', '.');
 
