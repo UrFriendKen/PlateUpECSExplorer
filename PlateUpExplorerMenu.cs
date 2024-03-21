@@ -8,7 +8,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
-using UniverseLib.UI.Widgets.ScrollView;
 using XNode;
 
 namespace KitchenECSExplorer
@@ -124,13 +123,26 @@ namespace KitchenECSExplorer
 
         protected class ObjectData
         {
+            private struct PossibleGDO
+            {
+                public int ID;
+                public GameDataObject GDO;
+            }
+
             public enum TypeClassification
             {
                 Unknown,
                 Null,
                 Class,
+                
                 Struct,
+                PossibleGDO,
                 DataObjectList,
+                Vector2,
+                Vector3,
+                Vector4,
+                Quaternion,
+
                 Native,
                 Collection,
                 Interface,
@@ -149,6 +161,16 @@ namespace KitchenECSExplorer
             public readonly TypeClassification Classification;
             public readonly object Value;
             public readonly List<ObjectData> FieldDatas;
+
+            private static readonly Dictionary<Type, TypeClassification> _specialTypeClassification = new Dictionary<Type, TypeClassification>()
+            {
+                { typeof(PossibleGDO), TypeClassification.PossibleGDO },
+                { typeof(DataObjectList), TypeClassification.DataObjectList },
+                { typeof(Vector2), TypeClassification.Vector2 },
+                { typeof(Vector3), TypeClassification.Vector3 },
+                { typeof(Vector4), TypeClassification.Vector4 },
+                { typeof(Quaternion), TypeClassification.Quaternion }
+            };
 
             public bool IsInit { get; private set; }
 
@@ -180,23 +202,11 @@ namespace KitchenECSExplorer
                     Classification = DetermineTypeClassification(Class);
                     switch (Classification)
                     {
-                        case TypeClassification.Class:
-                        case TypeClassification.Struct:
-                        case TypeClassification.DataObjectList:
-                        case TypeClassification.Collection:
-                        case TypeClassification.Enum:
-                        case TypeClassification.Tuple:
-                        case TypeClassification.GameObject:
-                        case TypeClassification.NodeGraph:
-                        case TypeClassification.Node:
-                            IsInit = false;
-                            break;
                         case TypeClassification.Native:
                         case TypeClassification.Interface:
                         case TypeClassification.Pointer:
                         case TypeClassification.Anonymous:
                         case TypeClassification.Texture:
-                        default:
                             IsInit = true;
                             break;
                     }
@@ -216,8 +226,6 @@ namespace KitchenECSExplorer
                 }
                 switch (Classification)
                 {
-                    case TypeClassification.Native:
-                        break;
                     case TypeClassification.Class:
                     case TypeClassification.Struct:
                         FieldInfo[] fields = Class.GetFields(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
@@ -238,12 +246,73 @@ namespace KitchenECSExplorer
                         {
                             FieldDatas.Add(new ObjectData($"Number of Elements", valueDataObjectList.Count));
                             int valueDataObjectListIndex = 0;
-                            foreach (object element in valueDataObjectList)
+                            foreach (int item in valueDataObjectList)
                             {
-                                Type elementType = element?.GetType();
+                                object element;
+                                if (GameData.Main.TryGet(item, out GameDataObject gdo))
+                                {
+                                    element = new PossibleGDO()
+                                    {
+                                        ID = item,
+                                        GDO = gdo
+                                    };
+                                }
+                                else
+                                    element = item;
                                 FieldDatas.Add(new ObjectData($"[{valueDataObjectListIndex}]", element));
                                 valueDataObjectListIndex++;
                             }
+                        }
+                        break;
+                    case TypeClassification.PossibleGDO:
+                        if (Value is PossibleGDO possibleGDO &&
+                            possibleGDO.GDO)
+                        {
+                            FieldDatas.Add(new ObjectData($"Matching {possibleGDO.GDO.GetType().Name}", possibleGDO.GDO));
+                        }
+                        break;
+                    case TypeClassification.Vector2:
+                        if (Value != default && Value is Vector2 vector2)
+                        {
+                            FieldDatas.Add(new ObjectData($"x", vector2.x));
+                            FieldDatas.Add(new ObjectData($"y", vector2.y));
+                            FieldDatas.Add(new ObjectData($"magnitude", vector2.magnitude));
+                            FieldDatas.Add(new ObjectData($"sqr Magnitude", vector2.sqrMagnitude));
+                            FieldDatas.Add(new ObjectData($"normalized", vector2.normalized));
+                        }
+                        break;
+                    case TypeClassification.Vector3:
+                        if (Value != default && Value is Vector3 vector3)
+                        {
+                            FieldDatas.Add(new ObjectData($"x", vector3.x));
+                            FieldDatas.Add(new ObjectData($"y", vector3.y));
+                            FieldDatas.Add(new ObjectData($"z", vector3.z));
+                            FieldDatas.Add(new ObjectData($"magnitude", vector3.magnitude));
+                            FieldDatas.Add(new ObjectData($"sqr Magnitude", vector3.sqrMagnitude));
+                            FieldDatas.Add(new ObjectData($"normalized", vector3.normalized));
+                        }
+                        break;
+                    case TypeClassification.Vector4:
+                        if (Value != default && Value is Vector4 vector4)
+                        {
+                            FieldDatas.Add(new ObjectData($"x", vector4.x));
+                            FieldDatas.Add(new ObjectData($"y", vector4.y));
+                            FieldDatas.Add(new ObjectData($"z", vector4.z));
+                            FieldDatas.Add(new ObjectData($"w", vector4.w));
+                            FieldDatas.Add(new ObjectData($"magnitude", vector4.magnitude));
+                            FieldDatas.Add(new ObjectData($"sqr Magnitude", vector4.sqrMagnitude));
+                            FieldDatas.Add(new ObjectData($"normalized", vector4.normalized));
+                        }
+                        break;
+                    case TypeClassification.Quaternion:
+                        if (Value != default && Value is Quaternion quaternion)
+                        {
+                            FieldDatas.Add(new ObjectData($"x", quaternion.x));
+                            FieldDatas.Add(new ObjectData($"y", quaternion.y));
+                            FieldDatas.Add(new ObjectData($"z", quaternion.z));
+                            FieldDatas.Add(new ObjectData($"w", quaternion.w));
+                            FieldDatas.Add(new ObjectData($"eulerAngles", quaternion.eulerAngles));
+                            FieldDatas.Add(new ObjectData($"normalized", quaternion.normalized));
                         }
                         break;
                     case TypeClassification.Collection:
@@ -308,12 +377,17 @@ namespace KitchenECSExplorer
                         GameObject gameObject = (GameObject)Value;
                         Component[] components = gameObject.GetComponents<Component>();
                         FieldDatas.Add(new ObjectData("Components", components));
-                        List<GameObject> children = new List<GameObject>();
-                        for (int i = 0; i < gameObject.transform.childCount; i++)
-                        {
-                            children.Add(gameObject.transform.GetChild(i).gameObject);
-                        }
-                        FieldDatas.Add(new ObjectData("Children", children.ToArray()));
+                        GameObject[] children = Enumerable.Range(0, gameObject.transform.childCount)
+                            .Select(childIndex => gameObject.transform.GetChild(childIndex).gameObject)
+                            .ToArray();
+                        FieldDatas.Add(new ObjectData("Children", children));
+                        FieldDatas.Add(new ObjectData("Layer", LayerMask.LayerToName(gameObject.layer)));
+                        FieldDatas.Add(new ObjectData("Tag", gameObject.tag));
+                        FieldDatas.Add(new ObjectData("HideFlags", gameObject.hideFlags));
+                        FieldDatas.Add(new ObjectData("Scene", gameObject.scene));
+                        FieldDatas.Add(new ObjectData("SceneCullingMask", gameObject.sceneCullingMask));
+                        FieldDatas.Add(new ObjectData("IsStatic", gameObject.isStatic));
+                        FieldDatas.Add(new ObjectData("Transform", gameObject.transform));
                         FieldDatas.Add(new ObjectData(gameObject.name, CustomPrefabSnapshot.GetSnapshot(gameObject, imageSize: 256)));
                         break;
                     case TypeClassification.NodeGraph:
@@ -371,18 +445,11 @@ namespace KitchenECSExplorer
                 }
             }
 
-            private static bool IsSpecialStruct(Type type, out TypeClassification typeClassification)
-            {
-                typeClassification = default;
-                if (type == typeof(DataObjectList))
-                {
-                    typeClassification = TypeClassification.DataObjectList;
-                }
-                return typeClassification != default;
-            }
-
             private TypeClassification DetermineTypeClassification(Type type)
             {
+                if (_specialTypeClassification.TryGetValue(type, out TypeClassification specialTypeClassification))
+                    return specialTypeClassification;
+
                 if (type.IsPrimitive || type == typeof(string))
                 {
                     return TypeClassification.Native;
@@ -405,10 +472,6 @@ namespace KitchenECSExplorer
                     else if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
                     {
                         return TypeClassification.Unknown;
-                    }
-                    else if (IsSpecialStruct(type, out TypeClassification specialStructClassification))
-                    {
-                        return specialStructClassification;
                     }
                     else if (type.IsValueType)
                     {
@@ -456,9 +519,15 @@ namespace KitchenECSExplorer
             public bool GetValueStringOverride(out string valueString)
             {
                 valueString = null;
-                string typeReadableName = ReflectionUtils.GetReadableTypeName(Class);
+                string typeReadableName = ReflectionUtils.GetReadableTypeName(Class, useFullname: false);
+                string typeReadableFullName = ReflectionUtils.GetReadableTypeName(Class);
                 switch (Classification)
                 {
+                    case TypeClassification.Native:
+                        if (!(Value is string str))
+                            break;
+                        valueString = str == string.Empty ? "string.Empty" : $"\"{str}\"";
+                        return true;
                     case TypeClassification.Struct:
                     case TypeClassification.Class:
                     case TypeClassification.Collection:
@@ -466,23 +535,35 @@ namespace KitchenECSExplorer
                         valueString = null;
                         try
                         {
-                            if (Value is UnityEngine.Object obj)
+                            if (Value is GameDataObject gdo)
                             {
-                                valueString = $"{obj.name} ({typeReadableName})";
+                                valueString = $"{gdo.name} ({typeReadableName})";
+                            }
+                            else if (Value is UnityEngine.Object obj)
+                            {
+                                valueString = $"{obj.name} ({typeReadableFullName})";
                             }
                         }
                         catch (NullReferenceException) { }
 
                         if (valueString == null)
-                            valueString = typeReadableName;
+                            valueString = typeReadableFullName;
                         
                         return true;
                     case TypeClassification.Enum:
-                        valueString = $"{typeReadableName}.{Value}";
+                        valueString = $"{typeReadableFullName}.{Value}";
                         return true;
+                    case TypeClassification.PossibleGDO:
+                        if (Value is PossibleGDO possibleGDO)
+                        {
+                            valueString = $"{possibleGDO.ID} ({possibleGDO.GDO.name})";
+                            return true;
+                        }
+                        break;
                     default:
-                        return false;
+                        break;
                 }
+                return false;
             }
 
             public bool DrawValueOverride()
@@ -518,14 +599,13 @@ namespace KitchenECSExplorer
 
         private ObjectData DrawObject(ObjectData data, int indentLevel = 0, int unitIndent = 20)
         {
-
             GUILayout.BeginHorizontal();
             GUILayout.Space(unitIndent * indentLevel);
             if (!data.DrawValueOverride())
             {
                 string label = "";
                 label += data.FieldDatas.Count > 0 || !data.IsInit ? (data.IsExpanded ? "▼ " : "▶ ") : "    ";
-                label += $"{data.Name}";
+                label += data.Name;
                 label += data.Value == null ? " = null" : $" = {(data.GetValueStringOverride(out string valueString) ? valueString : data.Value)}";
                 if (GUILayout.Button(label, LabelLeftStyle, GUILayout.MinWidth(600)))
                 {

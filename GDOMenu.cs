@@ -376,6 +376,7 @@ namespace KitchenECSExplorer
                 MethodInfo genericGetCustomGameDataObject = mGetCustomGameDataObject.MakeGenericMethod(SelectedGDOType);
                 var instance = genericGetCustomGameDataObject.Invoke(null, null);
                 selectedGDOInstance = new ObjectData(SelectedGDOType.Name, instance);
+                selectedGDOInstance.IsExpanded = true;
             }
             selectedGDOInstance = DrawObjectHierarchy(selectedGDOInstance, ref hierarchyScrollPosition, SelectedGDOType.Name);
         }
@@ -413,18 +414,27 @@ namespace KitchenECSExplorer
 
             foreach (var instance in matchingInstances)
             {
-                string typeName = $"{instance}";
+                string buttonText = "";
+                string idString = "";
+                if (instance is GameDataObject gdo)
+                {
+                    buttonText = gdo.name;
+                    idString = gdo.ID.ToString();
+                }
+                else if (instance is CustomGameDataObject customGdo)
+                {
+                    buttonText = customGdo.GameDataObject?.name;
+                    idString = customGdo.ID.ToString();
+                }
 
-                bool show = !usingIDMatch ||
-                    ((instance is GameDataObject gdo) && gdo.ID.ToString().Contains(instanceFilterText)) ||
-                    ((instance is CustomGameDataObject customGdo) && customGdo.ID.ToString().Contains(instanceFilterText));
-
-                if (!show)
+                if (usingIDMatch && !idString.Contains(instanceFilterText))
                     continue;
 
-                if (GUILayout.Button(typeName, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.3f - 15f)))
+                if (GUILayout.Button(buttonText, ButtonLeftStyle, GUILayout.Width(windowWidth * 0.3f - 15f)))
                 {
+                    string typeName = Utils.ReflectionUtils.GetReadableTypeName(SelectedGDOType);
                     selectedGDOInstance = new ObjectData(typeName, instance);
+                    selectedGDOInstance.IsExpanded = true;
                 }
             }
             GUILayout.EndScrollView();

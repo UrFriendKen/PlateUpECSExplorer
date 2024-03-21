@@ -36,8 +36,10 @@ namespace KitchenECSExplorer
             LogWarning($"{MOD_GUID} v{MOD_VERSION} in use!");
             RegisterMenu<AchievementMenu>();
             RegisterMenu<EntityQueryMenu>();
+            RegisterMenu<GameDataMenu>();
             RegisterMenu<GDOMenu>();
             RegisterMenu<SystemsMenu>();
+            RegisterMenu<ViewsMenu>();
         }
 
         protected override void OnPostActivate(KitchenMods.Mod mod)

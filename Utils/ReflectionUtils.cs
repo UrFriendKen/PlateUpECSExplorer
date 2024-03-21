@@ -130,7 +130,6 @@ namespace KitchenECSExplorer.Utils
         {
             string typeName = type.Name;
 
-            Main.LogInfo($"{typeName} in {type.DeclaringType}");
             if (type.IsGenericType)
             {
                 typeName = Regex.Replace(typeName, @"`\d+", ""); // Remove generic arity
