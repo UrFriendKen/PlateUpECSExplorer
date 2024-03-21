@@ -2,9 +2,6 @@
 using KitchenMods;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Unity.Entities;
 
 namespace KitchenECSExplorer
@@ -17,6 +14,7 @@ namespace KitchenECSExplorer
             if (firstUpdate)
             {
                 SystemsMenu.PopulateWorldSystems(GetSystemOrder());
+                ViewsMenu.Populate(AssetDirectory);
                 firstUpdate = false;
             }
 
