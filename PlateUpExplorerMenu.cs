@@ -1,4 +1,5 @@
 ﻿using Kitchen.Layouts.Modules;
+using KitchenData;
 using KitchenECSExplorer.Utils;
 using KitchenLib.DevUI;
 using System;
@@ -7,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
+using UniverseLib.UI.Widgets.ScrollView;
 using XNode;
 
 namespace KitchenECSExplorer
@@ -75,7 +77,6 @@ namespace KitchenECSExplorer
 
         protected virtual void OnSetup()
         {
-
         }
 
         protected string DoTabCompleteTextField(string controlName, string text, IEnumerable<string> orderedMatches, params GUILayoutOption[] options)
@@ -96,10 +97,8 @@ namespace KitchenECSExplorer
             return text;
         }
 
-        protected List<T> GetFuzzyMatches<T>(IEnumerable<T> items, string matchString, Func<T, string> selector, int minCharMatch = 3, int maxExtraChars = 3, int maxDistance = 5, bool ignoreCase = true)
+        protected List<T> GetFuzzyMatches<T>(IEnumerable<T> items, string matchString, Func<T, string> selector, StringUtils.FuzzyMatchStrategy matchStrategy = StringUtils.FuzzyMatchStrategy.IgnoreCaseAndLength, int maxLengthDifference = 3)
         {
-            maxDistance = Mathf.Clamp(maxDistance, 0, 999);
-            
             int matchStringLength = matchString.Length;
 
             List<(T value, int length, int distance)> matches = new List<(T, int, int)>();
@@ -108,13 +107,12 @@ namespace KitchenECSExplorer
                 string candidate = selector(item);
 
                 bool containsSubstring = candidate.Contains(matchString);
-                if ((maxExtraChars >= 0 && matchString.Length - candidate.Length > maxExtraChars) ||
-                    (minCharMatch < Mathf.Min(candidate.Length, matchStringLength) && candidate.Intersect(matchString).Count() < minCharMatch) ||
-                    (!IsFuzzyMatch(selector(item), matchString, out int distance, true, maxDistance, ignoreCase) && !containsSubstring))
+                if (matchStringLength - candidate.Length > maxLengthDifference ||
+                    !StringUtils.IsFuzzyMatch(candidate, matchString, out int distance, matchStrategy: matchStrategy, maxDistance: matchStringLength / 2) && !containsSubstring)
                     continue;
 
                 bool startsWithSubstring = candidate.StartsWith(matchString);
-                distance *= 1 * (containsSubstring ? 1 : 1000) * (startsWithSubstring ? 1 : 1000);
+                distance *= (containsSubstring ? 1 : 1000) * (startsWithSubstring ? 1 : 1000);
                 matches.Add((item, candidate.Length, distance));
             }
             return matches
@@ -122,21 +120,6 @@ namespace KitchenECSExplorer
                 .ThenBy(item => item.length)
                 .Select(item => item.value)
                 .ToList();
-        }
-
-        protected bool IsFuzzyMatch(string s1, string s2, out int editDistance, bool ignoreLength = false, int maxDistance = 10, bool ignoreCase = true)
-        {
-            if (ignoreCase)
-            {
-                s1 = s1.ToLowerInvariant();
-                s2 = s2.ToLowerInvariant();
-            }
-
-            maxDistance = Mathf.Clamp(maxDistance, 0, 999);
-            editDistance = StringUtils.LevenshteinDistance(s1, s2);
-            if (ignoreLength)
-                editDistance -= Mathf.Abs(s1.Length - s2.Length);
-            return editDistance <= maxDistance;
         }
 
         protected class ObjectData
@@ -147,6 +130,7 @@ namespace KitchenECSExplorer
                 Null,
                 Class,
                 Struct,
+                DataObjectList,
                 Native,
                 Collection,
                 Interface,
@@ -198,6 +182,7 @@ namespace KitchenECSExplorer
                     {
                         case TypeClassification.Class:
                         case TypeClassification.Struct:
+                        case TypeClassification.DataObjectList:
                         case TypeClassification.Collection:
                         case TypeClassification.Enum:
                         case TypeClassification.Tuple:
@@ -246,6 +231,19 @@ namespace KitchenECSExplorer
                         {
                             PropertyInfo property = properties[i];
                             FieldDatas.Add(new ObjectData($"{property.Name} {{{(property.CanRead ? " get;" : string.Empty)}{(property.CanWrite ? " set;" : string.Empty)} }}", property.GetValue(Value)));
+                        }
+                        break;
+                    case TypeClassification.DataObjectList:
+                        if (Value != default && Value is DataObjectList valueDataObjectList)
+                        {
+                            FieldDatas.Add(new ObjectData($"Number of Elements", valueDataObjectList.Count));
+                            int valueDataObjectListIndex = 0;
+                            foreach (object element in valueDataObjectList)
+                            {
+                                Type elementType = element?.GetType();
+                                FieldDatas.Add(new ObjectData($"[{valueDataObjectListIndex}]", element));
+                                valueDataObjectListIndex++;
+                            }
                         }
                         break;
                     case TypeClassification.Collection:
@@ -373,6 +371,16 @@ namespace KitchenECSExplorer
                 }
             }
 
+            private static bool IsSpecialStruct(Type type, out TypeClassification typeClassification)
+            {
+                typeClassification = default;
+                if (type == typeof(DataObjectList))
+                {
+                    typeClassification = TypeClassification.DataObjectList;
+                }
+                return typeClassification != default;
+            }
+
             private TypeClassification DetermineTypeClassification(Type type)
             {
                 if (type.IsPrimitive || type == typeof(string))
@@ -397,6 +405,10 @@ namespace KitchenECSExplorer
                     else if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
                     {
                         return TypeClassification.Unknown;
+                    }
+                    else if (IsSpecialStruct(type, out TypeClassification specialStructClassification))
+                    {
+                        return specialStructClassification;
                     }
                     else if (type.IsValueType)
                     {
