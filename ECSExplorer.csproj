@@ -39,7 +39,7 @@
   
 	<ItemGroup>
 		<PackageReference Include="MessagePack.Annotations" Version="2.4.59" />
-		<PackageReference Include="Yariazen.PlateUp.ModBuildUtilities" Version="1.10.21" />
+		<PackageReference Include="Yariazen.PlateUp.ModBuildUtilities" Version="1.11.5" />
 		<Reference Include="Facepunch.Steamworks.Win64">
 		  <HintPath>..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\PlateUp\PlateUp\PlateUp_Data\Managed\Facepunch.Steamworks.Win64.dll</HintPath>
 		</Reference>

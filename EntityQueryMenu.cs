@@ -6,6 +6,9 @@ using UnityEngine;
 using KitchenECSExplorer.Utils;
 using KitchenECSExplorer.Persistence;
 using System.IO;
+using TwitchLib.Api.Core.Models.Undocumented.ChannelPanels;
+using Unity.Entities.UniversalDelegates;
+using Kitchen;
 
 namespace KitchenECSExplorer
 {
@@ -561,22 +564,42 @@ namespace KitchenECSExplorer
 
         private void DrawComponentFieldTable(ComponentData data, float componentDataWidth, ObjectData objectData, ref Vector2 componentsInfoScrollPosition)
         {
+            float nameWidth = componentDataWidth * 0.23f;
+            float typeWidth = componentDataWidth * 0.4f;
+            float valueWidth = componentDataWidth * 0.3f;
+
             GUILayout.BeginHorizontal();
-            GUILayout.Label("Name", LabelCentreStyle, GUILayout.Width(componentDataWidth * 0.23f));
-            GUILayout.Label("Type", LabelCentreStyle, GUILayout.Width(componentDataWidth * 0.4f));
-            GUILayout.Label("Value", LabelCentreStyle, GUILayout.Width(componentDataWidth * 0.3f));
+            GUILayout.Label("Name", LabelCentreStyle, GUILayout.Width(nameWidth));
+            GUILayout.Label("Type", LabelCentreStyle, GUILayout.Width(typeWidth));
+            GUILayout.Label("Value", LabelCentreStyle, GUILayout.Width(valueWidth));
             GUILayout.EndHorizontal();
 
             componentsInfoScrollPosition = GUILayout.BeginScrollView(componentsInfoScrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar, GUILayout.Width(componentDataWidth));
             for (int i = 0; i < data.FieldCount; i++)
             {
-                GUILayout.BeginHorizontal();
-                GUILayout.Label(data.FieldNames[i], LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.23f));
-                GUILayout.Label(data.FieldTypes[i].ToString(), LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.38f));
-                GUILayout.Label(data.FieldValues[i].ToString(), LabelLeftStyle, GUILayout.Width(componentDataWidth * 0.3f));
-                GUILayout.EndHorizontal();
+                DrawComponentFieldTableLine(data, i, componentDataWidth, nameWidth, typeWidth, valueWidth);
             }
             GUILayout.EndScrollView();
+        }
+
+        private void DrawComponentFieldTableLine(ComponentData data, int fieldIndex, float componentDataWidth, float nameWidth, float typeWidth, float valueWidth)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(data.FieldNames[fieldIndex], LabelLeftStyle, GUILayout.Width(nameWidth));
+            GUILayout.Label(data.FieldTypes[fieldIndex].ToString(), LabelLeftStyle, GUILayout.Width(typeWidth));
+            GUILayout.Label(GetCustomValueString(data.FieldValues[fieldIndex]), LabelLeftStyle, GUILayout.Width(valueWidth));
+            GUILayout.EndHorizontal();
+        }
+
+        private string GetCustomValueString(object value)
+        {
+            if (value is SystemReference systemReference)
+            {
+                string systemName = SystemReference.GetName(systemReference);
+                if (!string.IsNullOrEmpty(systemName))
+                    return $"{SystemReference.GetName(systemReference)} ({(int)systemReference})";
+            }
+            return value.ToString();
         }
     }
 }
