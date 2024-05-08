@@ -15,6 +15,8 @@ namespace KitchenECSExplorer
     public abstract class PlateUpExplorerMenu : BaseUI
     {
         protected GUIStyle LabelLeftStyle { get; private set; }
+        protected GUIStyle LabelLeftStyleNoRichText { get; private set; }
+        protected GUIStyle LabelLeftStyleNoWordWrapNoRichText { get; private set; }
         protected GUIStyle LabelCentreStyle { get; private set; }
         protected GUIStyle LabelMiddleCentreStyle { get; private set; }
         protected GUIStyle ButtonLeftStyle { get; private set; }
@@ -41,9 +43,21 @@ namespace KitchenECSExplorer
                 LabelLeftStyle = new GUIStyle(GUI.skin.label);
                 LabelLeftStyle.alignment = TextAnchor.MiddleLeft;
                 LabelLeftStyle.padding.left = 10;
+                LabelLeftStyle.fixedWidth = 0;
                 LabelLeftStyle.stretchWidth = true;
             }
 
+            if (LabelLeftStyleNoRichText == null)
+            {
+                LabelLeftStyleNoRichText = new GUIStyle(LabelLeftStyle);
+                LabelLeftStyleNoRichText.richText = false;
+            }
+
+            if (LabelLeftStyleNoWordWrapNoRichText == null)
+            {
+                LabelLeftStyleNoWordWrapNoRichText = new GUIStyle(LabelLeftStyleNoRichText);
+                LabelLeftStyleNoWordWrapNoRichText.wordWrap = false;
+            }
 
             if (LabelCentreStyle == null)
             {
@@ -607,7 +621,7 @@ namespace KitchenECSExplorer
                 label += data.FieldDatas.Count > 0 || !data.IsInit ? (data.IsExpanded ? "▼ " : "▶ ") : "    ";
                 label += data.Name;
                 label += data.Value == null ? " = null" : $" = {(data.GetValueStringOverride(out string valueString) ? valueString : data.Value)}";
-                if (GUILayout.Button(label, LabelLeftStyle, GUILayout.MinWidth(600)))
+                if (GUILayout.Button(label, LabelLeftStyleNoWordWrapNoRichText))
                 {
                     data.IsExpanded = !data.IsExpanded;
                 }
