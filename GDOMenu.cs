@@ -239,6 +239,9 @@ namespace KitchenECSExplorer
 
         private const float windowWidth = 775f;
 
+        //Temp while OnInit is not working
+        private bool _isInit = false;
+
         public GDOMenu()
         {
             ButtonName = "GDOs";
@@ -267,6 +270,12 @@ namespace KitchenECSExplorer
 
         protected override void OnSetup() // This is called evey frame the menu is open, This is also where you draw your UnityGUI
         {
+            if (!_isInit)
+            {
+                OnInitialise();
+                _isInit = true;
+            }
+
             #region All Components List
             GUILayout.BeginArea(new Rect(10f, 0f, windowWidth, 250f));
             GUI.DrawTexture(new Rect(0f, 0f, windowWidth, 250f), Background, ScaleMode.StretchToFill);

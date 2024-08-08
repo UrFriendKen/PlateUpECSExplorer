@@ -23,6 +23,12 @@ namespace KitchenECSExplorer
 
         protected override void OnSetup() // This is called evey frame the menu is open, This is also where you draw your UnityGUI
         {
+            // Temp while OnInit does not work
+            if (Data == null)
+            {
+                OnInitialise();
+            }
+
             GUILayout.BeginArea(new Rect(10f, 0f, windowWidth, 1000f));
             GUI.DrawTexture(new Rect(0, 0, windowWidth, 1000f), Background);
             DrawObjectHierarchy(Data, ref scrollPosition);

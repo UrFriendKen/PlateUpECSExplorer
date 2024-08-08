@@ -42,6 +42,12 @@ namespace KitchenECSExplorer
         private Vector2 favouriteQueriesScrollPosition = new Vector2(0, 0);
         private string newFavouriteName = string.Empty;
 
+
+        // Temp while OnInit does not work
+        private bool _isInit = false;
+
+
+
         public EntityQueryMenu()
         {
             ButtonName = "Entity Query";
@@ -73,6 +79,12 @@ namespace KitchenECSExplorer
 
         protected override void OnSetup() // This is called evey frame the menu is open, This is also where you draw your UnityGUI
         {
+            if (!_isInit)
+            {
+                OnInitialise();
+                _isInit = true;
+            }
+
             float windowWidth = 775f;
             float componentListWidth = windowWidth - 40f;
             float queryListWidth = windowWidth / 3f - 15f;

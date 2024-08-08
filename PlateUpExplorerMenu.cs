@@ -23,21 +23,25 @@ namespace KitchenECSExplorer
         protected Texture2D Background { get; private set; }
         public sealed override void OnInit()
         {
-            Background = new Texture2D(64, 64);
-            Color grayWithAlpha = new Color(0.2f, 0.2f, 0.2f, 0.6f);
-            for (int x = 0; x < 64; x++)
-            {
-                for (int y = 0; y < 64; y++)
-                {
-                    Background.SetPixel(x, y, grayWithAlpha);
-                }
-            }
-            Background.Apply();
             OnInitialise();
         }
 
         public sealed override void Setup()
         {
+            if (Background == null)
+            {
+                Background = new Texture2D(64, 64);
+                Color grayWithAlpha = new Color(0.2f, 0.2f, 0.2f, 0.6f);
+                for (int x = 0; x < 64; x++)
+                {
+                    for (int y = 0; y < 64; y++)
+                    {
+                        Background.SetPixel(x, y, grayWithAlpha);
+                    }
+                }
+                Background.Apply();
+            }
+
             if (LabelLeftStyle == null)
             {
                 LabelLeftStyle = new GUIStyle(GUI.skin.label);
