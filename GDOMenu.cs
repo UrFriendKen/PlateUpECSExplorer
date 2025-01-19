@@ -249,6 +249,11 @@ namespace KitchenECSExplorer
 
         protected override void OnInitialise()
         {
+            if (_isInit)
+                return;
+
+            VanillaGDOs.Clear();
+            CustomGDOs.Clear();
             foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
             {
                 // Get all non-abstract types in the assembly that inherit from KitchenData.GameDataObject
@@ -266,15 +271,12 @@ namespace KitchenECSExplorer
             CustomGDOs = CustomGDOs.OrderBy(type => type.FullName).ToList();
             Main.LogInfo($"Number of Vanilla GDOs = {VanillaGDOs.Count}");
             Main.LogInfo($"Number of Custom GDOs = {CustomGDOs.Count}");
+            _isInit = true;
         }
 
         protected override void OnSetup() // This is called evey frame the menu is open, This is also where you draw your UnityGUI
         {
-            if (!_isInit)
-            {
-                OnInitialise();
-                _isInit = true;
-            }
+            OnInitialise();
 
             #region All Components List
             GUILayout.BeginArea(new Rect(10f, 0f, windowWidth, 250f));

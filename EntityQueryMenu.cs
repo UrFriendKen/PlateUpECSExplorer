@@ -1,14 +1,11 @@
-﻿using System;
+﻿using Kitchen;
+using KitchenECSExplorer.Persistence;
+using KitchenECSExplorer.Utils;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Entities;
 using UnityEngine;
-using KitchenECSExplorer.Utils;
-using KitchenECSExplorer.Persistence;
-using System.IO;
-using TwitchLib.Api.Core.Models.Undocumented.ChannelPanels;
-using Unity.Entities.UniversalDelegates;
-using Kitchen;
 
 namespace KitchenECSExplorer
 {
@@ -55,6 +52,8 @@ namespace KitchenECSExplorer
 
         protected override void OnInitialise()
         {
+            if (_isInit)
+                return;
             int i = 0;
             foreach (var typeInfo in TypeManager.AllTypes.Where(componentType => 
                 componentType.Category == TypeManager.TypeCategory.ComponentData ||
@@ -75,15 +74,12 @@ namespace KitchenECSExplorer
             }
             Main.LogInfo($"Number of components = {i}");
             LoadFavouriteQueries();
+            _isInit = true;
         }
 
         protected override void OnSetup() // This is called evey frame the menu is open, This is also where you draw your UnityGUI
         {
-            if (!_isInit)
-            {
-                OnInitialise();
-                _isInit = true;
-            }
+            OnInitialise();
 
             float windowWidth = 775f;
             float componentListWidth = windowWidth - 40f;
