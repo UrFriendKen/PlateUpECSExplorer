@@ -1,6 +1,7 @@
 ﻿using KitchenLib;
 using KitchenMods;
 using System.Reflection;
+using UnityEngine;
 
 // Namespace should have "Kitchen" in the beginning
 namespace KitchenECSExplorer
